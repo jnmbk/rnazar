@@ -91,10 +91,7 @@ fn compile_windows_resources(version: &str) {
     res.set("ProductName", "rnazar");
     res.set("ProductVersion", version);
     res.set("FileVersion", version);
-    res.set(
-        "FileDescription",
-        "System tray evil eye ward and crash notifier",
-    );
+    res.set("FileDescription", "rnazar");
     res.set("LegalCopyright", "Copyright (c) 2026");
     if let Err(e) = res.compile() {
         eprintln!("Warning: Failed to compile Windows resources: {e}");

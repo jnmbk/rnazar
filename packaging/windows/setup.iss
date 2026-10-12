@@ -33,9 +33,15 @@ UninstallDisplayIcon={app}\{#MyAppExeName}
 Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "turkish"; MessagesFile: "compiler:Languages\Turkish.isl"
 
+[CustomMessages]
+english.StartupGroup=Windows Startup:
+english.StartupTask=Start {#MyAppName} automatically when Windows starts
+turkish.StartupGroup=Windows Başlangıcı:
+turkish.StartupTask=Windows başladığında {#MyAppName} uygulamasını otomatik olarak başlat
+
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
-Name: "startup"; Description: "Start rnazar automatically when Windows starts"; GroupDescription: "Windows Startup:"
+Name: "startup"; Description: "{cm:StartupTask}"; GroupDescription: "{cm:StartupGroup}"
 
 [Files]
 Source: "..\..\target\release\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
