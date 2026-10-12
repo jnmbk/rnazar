@@ -88,9 +88,11 @@ impl Language {
         self.gettext("About rnazar")
     }
 
-    pub fn about_body(&self) -> &str {
-        self.gettext(
-            "rnazar v0.1.0\nA thorn in the heart, a stab in the eye.\nTakes care of your apps.",
+    pub fn about_body(&self) -> String {
+        format!(
+            "rnazar v{}\n{}",
+            crate::about::APP_VERSION,
+            self.gettext("A thorn in the heart, a stab in the eye.\nTakes care of your apps.")
         )
     }
 

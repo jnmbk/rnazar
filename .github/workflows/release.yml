@@ -8,6 +8,9 @@ on:
 permissions:
   contents: write
 
+env:
+  RNAZAR_VERSION: ${{ github.ref_name }}
+
 jobs:
   build-linux-appimage:
     name: Build Linux AppImage
@@ -56,7 +59,8 @@ jobs:
 
       - name: Compile Inno Setup Installer
         run: |
-          iscc packaging\windows\setup.iss
+          $ver = "${{ github.ref_name }}".TrimStart('v')
+          iscc "/DMyAppVersion=$ver" packaging\windows\setup.iss
 
       - name: Upload Windows Asset
         uses: softprops/action-gh-release@v2

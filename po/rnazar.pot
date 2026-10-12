@@ -33,7 +33,7 @@ msgstr ""
 msgid "Exit"
 msgstr ""
 
-msgid "rnazar v0.1.0\nA thorn in the heart, a stab in the eye.\nTakes care of your apps."
+msgid "A thorn in the heart, a stab in the eye.\nTakes care of your apps."
 msgstr ""
 
 msgid "Inspired by knazar from Pardus 1.0"

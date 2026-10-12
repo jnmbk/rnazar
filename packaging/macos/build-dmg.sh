@@ -18,7 +18,8 @@ cp "${ROOT_DIR}/target/release/rnazar" "${APP_BUNDLE}/Contents/MacOS/rnazar"
 cp "${ROOT_DIR}/packaging/macos/Info.plist" "${APP_BUNDLE}/Contents/Info.plist"
 cp "${ROOT_DIR}/assets/icons/rnazar.icns" "${APP_BUNDLE}/Contents/Resources/rnazar.icns"
 
-VERSION="$(grep '^version' "${ROOT_DIR}/Cargo.toml" | head -n1 | cut -d '"' -f2 || echo "0.1.0")"
+VERSION="${RNAZAR_VERSION:-$(grep '^version' "${ROOT_DIR}/Cargo.toml" | head -n1 | cut -d '"' -f2 || echo "0.1.0")}"
+VERSION="${VERSION#v}"
 DMG_PATH="${OUTPUT_DIR}/rnazar-v${VERSION}-macos-universal.dmg"
 
 echo "==> Packaging DMG at ${DMG_PATH}..."

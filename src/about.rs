@@ -1,5 +1,6 @@
 use crate::i18n::Language;
 
+pub const APP_VERSION: &str = env!("APP_VERSION");
 pub const CREATOR_INFO: &str = "Uğur Çetin";
 pub const INSPIRATION_INFO: &str = "Inspired by knazar from Pardus 1.0";
 pub const LICENSE_NAME: &str = "MIT License";
@@ -17,7 +18,7 @@ pub fn show_about_window(lang: Language) {
 
     let dialog = AboutDialog::new();
     dialog.set_program_name("rnazar");
-    dialog.set_version(Some("0.1.0"));
+    dialog.set_version(Some(APP_VERSION));
     let comments = format!("{}\n\n{}", lang.about_body(), lang.inspiration_info());
     dialog.set_comments(Some(&comments));
     dialog.set_copyright(Some("Copyright © 2026 Uğur Çetin"));

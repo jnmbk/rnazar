@@ -46,7 +46,8 @@ else
     APPIMAGETOOL="appimagetool"
 fi
 
-VERSION="$(grep '^version' "${ROOT_DIR}/Cargo.toml" | head -n1 | cut -d '"' -f2 || echo "0.1.0")"
+VERSION="${RNAZAR_VERSION:-$(grep '^version' "${ROOT_DIR}/Cargo.toml" | head -n1 | cut -d '"' -f2 || echo "0.1.0")}"
+VERSION="${VERSION#v}"
 OUTPUT_FILE="${OUTPUT_DIR}/rnazar-${VERSION}-x86_64.AppImage"
 
 echo "==> Creating AppImage at ${OUTPUT_FILE}..."

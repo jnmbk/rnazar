@@ -23,7 +23,7 @@ pub fn show_about_notification(language: Language) {
 
     let res = Notification::new()
         .summary(title)
-        .body(body)
+        .body(&body)
         .appname("rnazar")
         .icon("rnazar")
         .show();

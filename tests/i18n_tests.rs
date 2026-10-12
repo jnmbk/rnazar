@@ -55,6 +55,7 @@ fn test_language_resolution() {
 
 #[test]
 fn test_about_metadata() {
+    assert!(!rnazar::about::APP_VERSION.is_empty());
     assert!(!rnazar::about::CREATOR_INFO.is_empty());
     assert!(!rnazar::about::LICENSE_NAME.is_empty());
     assert!(!rnazar::about::LICENSE_TEXT.is_empty());
@@ -62,4 +63,8 @@ fn test_about_metadata() {
     assert!(rnazar::about::CREATOR_INFO.contains("Uğur Çetin"));
     assert!(rnazar::about::LICENSE_TEXT.contains("MIT License"));
     assert!(rnazar::about::INSPIRATION_INFO.contains("knazar from Pardus 1.0"));
+    assert!(Language::Turkish.about_body().contains("Elemtere fiş"));
+    assert!(Language::Turkish
+        .about_body()
+        .contains(rnazar::about::APP_VERSION));
 }
