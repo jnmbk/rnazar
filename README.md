@@ -18,6 +18,10 @@ This project is inspired by knazar project that was made for KDE3 back in 2006 b
 - **Localized Crash Notifications**:
   - Turkish: *"Nazar değdi ve icabına bakıldı."*
   - English: *"An evil eye struck and it was taken care of."*
+- **Automatic OS Crash Detection**:
+  - **Linux**: Monitors `systemd-coredump` events in real time via `journalctl`.
+  - **macOS**: Streams `ReportCrash` events from Unified Logging (`log stream`) and monitors `DiagnosticReports` (`.ips` / `.crash`).
+  - **Windows**: Subscribes in real time to Windows Application Event Log (`EventID 1000` / `Application Error`) and watches Windows Error Reporting (`WER\ReportArchive`, `WER\ReportQueue`, and `CrashDumps`).
 - **Desktop Messaging Integration**:
   - **Linux (D-Bus)**: Exposes `org.rnazar.Notifier` on the session bus with `NotifyCrash(app_name: String)`.
   - **Cross-Platform CLI**: Trigger notifications easily with `rnazar notify --app <name>` or `rnazar --crash <name>`.

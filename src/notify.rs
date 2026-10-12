@@ -17,12 +17,19 @@ pub fn show_crash_notification(language: Language, app_name: Option<&str>) {
     #[cfg(all(unix, not(target_os = "macos")))]
     notification.icon("rnazar");
 
-    log::debug!("Calling notification.show() with title='{}', body='{}'", title, body);
+    log::debug!(
+        "Calling notification.show() with title='{}', body='{}'",
+        title,
+        body
+    );
     let res = notification.show();
 
     match res {
         Ok(handle) => {
-            log::debug!("Desktop notification shown successfully (id={})", handle.id());
+            log::debug!(
+                "Desktop notification shown successfully (id={})",
+                handle.id()
+            );
             #[cfg(all(unix, not(target_os = "macos")))]
             keep_handle_alive(handle);
         }

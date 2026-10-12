@@ -83,17 +83,204 @@ fn test_parse_systemd_coredump_json() {
 fn test_parse_crash_filename() {
     use rnazar::messaging::monitor::parse_crash_filename;
 
+    // macOS DiagnosticReports (.ips and .crash), including hyphenated app names
     assert_eq!(
         parse_crash_filename("Safari-2026-10-12-210000.ips"),
         Some("Safari".to_string())
     );
     assert_eq!(
+        parse_crash_filename("obs-studio-2026-10-12-210000.ips"),
+        Some("obs-studio".to_string())
+    );
+    assert_eq!(
+        parse_crash_filename("iTerm2_2026-10-12-210000_MacBook.crash"),
+        Some("iTerm2".to_string())
+    );
+    // Ignore hidden in-progress dotfiles and non-crash macOS logs
+    assert_eq!(parse_crash_filename(".Safari-2026-10-12-210000.ips"), None);
+    assert_eq!(
+        parse_crash_filename("JetsamEvent-2026-10-12-210000.ips"),
+        None
+    );
+
+    // Windows LocalDumps (.dmp / .mdmp) and WER ReportArchive folders (AppCrash_...)
+    assert_eq!(
         parse_crash_filename("notepad.exe.4812.dmp"),
         Some("notepad".to_string())
     );
     assert_eq!(
+        parse_crash_filename("my.cool.app.exe.9001.mdmp"),
+        Some("my.cool.app".to_string())
+    );
+    assert_eq!(
+        parse_crash_filename("AppCrash_calculator.exe_9f8e7d6c_00000000_12345678"),
+        Some("calculator".to_string())
+    );
+    assert_eq!(
+        parse_crash_filename("AppCrash_my_game.exe_11223344_00000000_87654321"),
+        Some("my_game".to_string())
+    );
+    assert_eq!(
+        parse_crash_filename("AppHang_explorer.exe_11223344_00000000"),
+        None
+    );
+
+    // Ubuntu/Debian Apport
+    assert_eq!(
         parse_crash_filename("_usr_bin_vlc.1000.crash"),
         Some("vlc".to_string())
     );
-    assert_eq!(parse_crash_filename("rnazar-2026-10-12.ips"), None);
+
+    // Ignore rnazar itself and crash daemons
+    assert_eq!(parse_crash_filename("rnazar-2026-10-12-210000.ips"), None);
+    assert_eq!(
+        parse_crash_filename("AppCrash_rnazar.exe_12345678_00000000"),
+        None
+    );
+    assert_eq!(parse_crash_filename("WerFault.exe.1234.dmp"), None);
+}
+
+#[test]
+fn test_parse_macos_crash_log_and_ips_header() {
+    use rnazar::messaging::monitor::{parse_macos_crash_log, parse_macos_ips_header};
+
+    // macOS unified log NDJSON from ReportCrash
+    let ndjson_corpse = r#"{"eventMessage":"Formulating fatal 309 report for corpse[1959] UnCrackable Level 1","processImagePath":"/System/Library/CoreServices/ReportCrash"}"#;
+    assert_eq!(
+        parse_macos_crash_log(ndjson_corpse),
+        Some("UnCrackable Level 1".to_string())
+    );
+
+    let ndjson_saved = r#"{"eventMessage":"client log create type 309 result success: /Users/test/Library/Logs/DiagnosticReports/Firefox-2026-10-12-210000.ips"}"#;
+    assert_eq!(
+        parse_macos_crash_log(ndjson_saved),
+        Some("Firefox".to_string())
+    );
+
+    let legacy_saved =
+        "Saved crash report for Pages[4120] version 14.0 to /Users/test/Library/Logs/DiagnosticReports/Pages_2026-10-12.crash";
+    assert_eq!(
+        parse_macos_crash_log(legacy_saved),
+        Some("Pages".to_string())
+    );
+
+    let self_log = r#"{"eventMessage":"Formulating fatal 309 report for corpse[999] rnazar"}"#;
+    assert_eq!(parse_macos_crash_log(self_log), None);
+
+    // macOS .ips JSON header (bug_type 309 = crash, bug_type 202 = spin/non-crash)
+    let crash_ips = "{\"app_name\":\"Blender\",\"bug_type\":\"309\",\"name\":\"Blender\"}\n{\"procName\":\"Blender\"}";
+    assert_eq!(
+        parse_macos_ips_header(crash_ips),
+        Some("Blender".to_string())
+    );
+
+    let spin_ips = "{\"app_name\":\"Blender\",\"bug_type\":\"202\",\"name\":\"Blender\"}\n{}";
+    assert_eq!(parse_macos_ips_header(spin_ips), None);
+}
+
+#[test]
+fn test_parse_windows_event_xml_and_wer_report() {
+    use rnazar::messaging::monitor::{
+        decode_wer_bytes, parse_windows_event_xml, parse_windows_wer_report,
+    };
+
+    // Windows 11 Event ID 1000 XML with named Data attributes
+    let win11_xml = r#"
+    <Event xmlns='http://schemas.microsoft.com/win/2004/08/events/event'>
+      <System>
+        <Provider Name='Application Error'/>
+        <EventID>1000</EventID>
+      </System>
+      <EventData>
+        <Data Name='AppName'>notepad.exe</Data>
+        <Data Name='AppVersion'>10.0.22621.1</Data>
+      </EventData>
+    </Event>"#;
+    assert_eq!(
+        parse_windows_event_xml(win11_xml),
+        Some("notepad".to_string())
+    );
+
+    // Windows 10 Event ID 1000 XML with positional Data elements
+    let win10_xml = r#"
+    <Event xmlns="http://schemas.microsoft.com/win/2004/08/events/event">
+      <System>
+        <Provider Name="Application Error" />
+        <EventID Qualifiers="0">1000</EventID>
+      </System>
+      <EventData>
+        <Data>C:\Program Files\VideoLAN\VLC\vlc.exe</Data>
+        <Data>3.0.20.0</Data>
+      </EventData>
+    </Event>"#;
+    assert_eq!(parse_windows_event_xml(win10_xml), Some("vlc".to_string()));
+
+    // Non-1000 event ID should be ignored
+    let other_event_xml = r#"<Event><System><EventID>1002</EventID></System><EventData><Data>notepad.exe</Data></EventData></Event>"#;
+    assert_eq!(parse_windows_event_xml(other_event_xml), None);
+
+    // Windows Report.wer content (UTF-16LE with BOM)
+    let wer_text =
+        "Version=1\r\nEventType=APPCRASH\r\nNsAppName=winword.exe\r\nFriendlyAppName=Word\r\n";
+    let mut utf16le_bytes = vec![0xFF, 0xFE];
+    for u in wer_text.encode_utf16() {
+        utf16le_bytes.extend_from_slice(&u.to_le_bytes());
+    }
+    let decoded = decode_wer_bytes(&utf16le_bytes);
+    assert_eq!(
+        parse_windows_wer_report(&decoded),
+        Some("winword".to_string())
+    );
+
+    // Non-crash WER report (e.g. AppHangB1) should be ignored
+    let hang_wer = "Version=1\r\nEventType=AppHangB1\r\nNsAppName=winword.exe\r\n";
+    assert_eq!(parse_windows_wer_report(hang_wer), None);
+}
+
+#[test]
+fn test_crash_dir_scanner() {
+    use rnazar::messaging::monitor::CrashDirScanner;
+    use std::fs;
+
+    let temp_dir =
+        std::env::temp_dir().join(format!("rnazar-crash-scan-test-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&temp_dir);
+    fs::create_dir_all(&temp_dir).expect("failed to create temp test dir");
+
+    // Pre-existing crash report before scanner starts should not fire
+    fs::write(
+        temp_dir.join("OldApp-2026-10-11-120000.ips"),
+        "{\"app_name\":\"OldApp\",\"bug_type\":\"309\"}\n{}",
+    )
+    .unwrap();
+
+    let mut scanner = CrashDirScanner::new(vec![temp_dir.clone()]);
+    assert!(scanner.poll_new_crashes().is_empty());
+
+    // Hidden dotfile created while OSAnalytics is writing should be ignored until renamed
+    let dot_ips = temp_dir.join(".Safari-2026-10-12-210000.ips");
+    let final_ips = temp_dir.join("Safari-2026-10-12-210000.ips");
+    fs::write(
+        &dot_ips,
+        "{\"app_name\":\"Safari\",\"bug_type\":\"309\"}\n{}",
+    )
+    .unwrap();
+    assert!(scanner.poll_new_crashes().is_empty());
+
+    fs::rename(&dot_ips, &final_ips).unwrap();
+    assert_eq!(scanner.poll_new_crashes(), vec!["Safari".to_string()]);
+    // Subsequent poll should not re-emit already seen file
+    assert!(scanner.poll_new_crashes().is_empty());
+
+    // Windows WER folder with Report.wer inside
+    let wer_dir = temp_dir.join("AppCrash_mspaint.exe_123456");
+    fs::create_dir_all(&wer_dir).unwrap();
+    fs::write(
+        wer_dir.join("Report.wer"),
+        "Version=1\r\nEventType=BEX64\r\nNsAppName=mspaint.exe\r\n",
+    )
+    .unwrap();
+    assert_eq!(scanner.poll_new_crashes(), vec!["mspaint".to_string()]);
+
+    let _ = fs::remove_dir_all(&temp_dir);
 }
