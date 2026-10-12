@@ -55,4 +55,5 @@ fn test_about_metadata() {
     assert!(!rnazar::about::WEBSITE_URL.is_empty());
     assert!(rnazar::about::CREATOR_INFO.contains("Uğur Çetin"));
     assert!(rnazar::about::LICENSE_TEXT.contains("MIT License"));
+    assert!(rnazar::about::INSPIRATION_INFO.contains("knazar from Pardus 1.0"));
 }
