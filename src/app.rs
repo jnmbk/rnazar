@@ -4,18 +4,22 @@ use crate::messaging::start_desktop_messaging;
 use crate::notify::show_crash_notification;
 use crate::tray::{build_tray_icon, TrayMenuController};
 use std::error::Error;
+use std::sync::{Arc, RwLock};
 use tao::event::{Event, StartCause};
 use tao::event_loop::{ControlFlow, EventLoopBuilder};
 
 #[derive(Debug)]
 pub enum UserAppEvent {
-    CrashReport(Option<String>),
     MenuEvent(muda::MenuEvent),
 }
 
 pub fn run_tray_application() -> Result<(), Box<dyn Error>> {
-    let mut config = AppConfig::load();
-    let menu_controller = TrayMenuController::new(config.language.clone())?;
+    let config = Arc::new(RwLock::new(AppConfig::load()));
+    let initial_lang = config
+        .read()
+        .map(|c| c.language.clone())
+        .unwrap_or(Language::Auto);
+    let menu_controller = TrayMenuController::new(initial_lang)?;
 
     // Build event loop with custom user events
     let event_loop = EventLoopBuilder::<UserAppEvent>::with_user_event().build();
@@ -28,9 +32,18 @@ pub fn run_tray_application() -> Result<(), Box<dyn Error>> {
     }));
 
     // Start desktop messaging listeners (D-Bus on Linux, IPC on all platforms)
-    let crash_proxy = proxy.clone();
+    // Run notification directly from listener thread so headless tray event loop isn't blocked
+    let msg_config = Arc::clone(&config);
     start_desktop_messaging(move |app_name| {
-        let _ = crash_proxy.send_event(UserAppEvent::CrashReport(app_name));
+        let lang = msg_config
+            .read()
+            .map(|c| c.language.clone())
+            .unwrap_or(Language::Auto);
+        log::debug!(
+            "Crash notification triggered for: {:?}",
+            app_name.as_deref().unwrap_or("<unspecified>")
+        );
+        show_crash_notification(lang, app_name.as_deref());
     });
 
     // Build tray icon (keep instance alive for event loop lifetime)
@@ -45,31 +58,37 @@ pub fn run_tray_application() -> Result<(), Box<dyn Error>> {
             Event::NewEvents(StartCause::Init) => {
                 // Initial setup complete
             }
-            Event::UserEvent(UserAppEvent::CrashReport(app_name)) => {
-                log::debug!(
-                    "Crash notification triggered for: {:?}",
-                    app_name.as_deref().unwrap_or("<unspecified>")
-                );
-                show_crash_notification(config.language.clone(), app_name.as_deref());
-            }
             Event::UserEvent(UserAppEvent::MenuEvent(menu_event)) => {
                 let id = menu_event.id();
                 if id == menu_controller.item_lang_auto.id() {
-                    config.language = Language::Auto;
-                    config.save();
-                    menu_controller.update_language(&config.language);
+                    if let Ok(mut cfg) = config.write() {
+                        cfg.language = Language::Auto;
+                        cfg.save();
+                        menu_controller.update_language(&cfg.language);
+                    }
                 } else if let Some(target) = menu_controller
                     .lang_items
                     .iter()
                     .find(|item| item.item.id() == id)
                 {
-                    config.language = target.language.clone();
-                    config.save();
-                    menu_controller.update_language(&config.language);
+                    if let Ok(mut cfg) = config.write() {
+                        cfg.language = target.language.clone();
+                        cfg.save();
+                        menu_controller.update_language(&cfg.language);
+                    }
                 } else if id == menu_controller.item_about.id() {
+                    let lang = config
+                        .read()
+                        .map(|c| c.language.clone())
+                        .unwrap_or(Language::Auto);
                     log::debug!("About menu clicked, displaying about window...");
-                    crate::about::show_about_window(config.language.clone());
+                    crate::about::show_about_window(lang);
                 } else if id == menu_controller.item_exit.id() {
+                    let lang = config
+                        .read()
+                        .map(|c| c.language.clone())
+                        .unwrap_or(Language::Auto);
+
                     #[cfg(target_os = "linux")]
                     let confirmed = {
                         use gtk::prelude::*;
@@ -78,9 +97,9 @@ pub fn run_tray_application() -> Result<(), Box<dyn Error>> {
                             gtk::DialogFlags::MODAL,
                             gtk::MessageType::Warning,
                             gtk::ButtonsType::YesNo,
-                            config.language.exit_confirm_message(),
+                            lang.exit_confirm_message(),
                         );
-                        dialog.set_title(config.language.exit_confirm_title());
+                        dialog.set_title(lang.exit_confirm_title());
                         let response = dialog.run();
                         dialog.close();
                         response == gtk::ResponseType::Yes
@@ -89,8 +108,8 @@ pub fn run_tray_application() -> Result<(), Box<dyn Error>> {
                     #[cfg(not(target_os = "linux"))]
                     let confirmed = {
                         let res = rfd::MessageDialog::new()
-                            .set_title(config.language.exit_confirm_title())
-                            .set_description(config.language.exit_confirm_message())
+                            .set_title(lang.exit_confirm_title())
+                            .set_description(lang.exit_confirm_message())
                             .set_buttons(rfd::MessageButtons::YesNo)
                             .set_level(rfd::MessageLevel::Warning)
                             .show();

@@ -36,6 +36,9 @@ fn test_ipc_roundtrip() {
     use std::sync::Arc;
     use std::time::Duration;
 
+    let test_socket = std::env::temp_dir().join(format!("rnazar-test-{}.sock", std::process::id()));
+    std::env::set_var("RNAZAR_SOCKET_PATH", &test_socket);
+
     let (tx, rx) = channel();
     start_ipc_listener(Arc::new(move |app| {
         let _ = tx.send(app);
@@ -48,4 +51,7 @@ fn test_ipc_roundtrip() {
 
     let received = rx.recv_timeout(Duration::from_secs(3));
     assert_eq!(received.unwrap(), Some("ipc-unit-test-app".to_string()));
+
+    std::env::remove_var("RNAZAR_SOCKET_PATH");
+    let _ = std::fs::remove_file(test_socket);
 }

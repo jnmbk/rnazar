@@ -17,10 +17,29 @@ pub fn show_crash_notification(language: Language, app_name: Option<&str>) {
     #[cfg(all(unix, not(target_os = "macos")))]
     notification.icon("rnazar");
 
+    log::debug!("Calling notification.show() with title='{}', body='{}'", title, body);
     let res = notification.show();
 
-    if let Err(e) = res {
-        log::warn!("Failed to show desktop notification: {}", e);
+    match res {
+        Ok(handle) => {
+            log::debug!("Desktop notification shown successfully (id={})", handle.id());
+            #[cfg(all(unix, not(target_os = "macos")))]
+            keep_handle_alive(handle);
+        }
+        Err(e) => log::warn!("Failed to show desktop notification: {}", e),
+    }
+}
+
+#[cfg(all(unix, not(target_os = "macos")))]
+fn keep_handle_alive(handle: notify_rust::NotificationHandle) {
+    use std::sync::{Mutex, OnceLock};
+    static HANDLES: OnceLock<Mutex<Vec<notify_rust::NotificationHandle>>> = OnceLock::new();
+    if let Ok(mut list) = HANDLES.get_or_init(|| Mutex::new(Vec::new())).lock() {
+        // Keep up to 16 recent handles alive (especially the first one, which GNOME Shell watches)
+        if list.len() >= 16 {
+            list.remove(1);
+        }
+        list.push(handle);
     }
 }
 
@@ -42,7 +61,11 @@ pub fn show_about_notification(language: Language) {
 
     let res = notification.show();
 
-    if let Err(e) = res {
-        log::warn!("Failed to show about notification: {}", e);
+    match res {
+        Ok(handle) => {
+            #[cfg(all(unix, not(target_os = "macos")))]
+            keep_handle_alive(handle);
+        }
+        Err(e) => log::warn!("Failed to show about notification: {}", e),
     }
 }

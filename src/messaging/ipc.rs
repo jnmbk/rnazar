@@ -15,6 +15,9 @@ mod unix_ipc {
     use std::path::PathBuf;
 
     fn socket_path() -> PathBuf {
+        if let Some(custom) = std::env::var_os("RNAZAR_SOCKET_PATH") {
+            return PathBuf::from(custom);
+        }
         if let Some(runtime_dir) = dirs::runtime_dir() {
             return runtime_dir.join("rnazar.sock");
         }
