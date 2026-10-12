@@ -65,7 +65,8 @@ mod unix_ipc {
 mod windows_ipc {
     use super::*;
     use interprocess::local_socket::{
-        traits::Stream as _, GenericNamespaced, ListenerOptions, Stream, ToNsName,
+        traits::{Listener as _, ListenerExt as _, Stream as _},
+        GenericNamespaced, ListenerOptions, Stream, ToNsName,
     };
 
     const PIPE_NAME: &str = "@rnazar-messaging.sock";
@@ -88,7 +89,7 @@ mod windows_ipc {
                 }
             };
 
-            for conn in listener.incoming().map_while(Result::ok) {
+            for conn in listener.incoming().flatten() {
                 let tx_clone = tx.clone();
                 std::thread::spawn(move || {
                     let reader = BufReader::new(conn);
