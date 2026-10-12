@@ -30,6 +30,7 @@ echo "==> Building RPM package..."
 if command -v rpmbuild >/dev/null 2>&1; then
     rpmbuild --define "_topdir ${RPMBUILD_DIR}" \
              --define "version ${VERSION}" \
+             --nodeps \
              -bb "${RPMBUILD_DIR}/SPECS/rnazar.spec"
     
     find "${RPMBUILD_DIR}/RPMS" -type f -name "*.rpm" -exec cp {} "${OUTPUT_DIR}/" \;

@@ -6,7 +6,6 @@ License:        MIT or ASL 2.0
 URL:            https://github.com/jnmbk/rnazar
 
 Requires:       gtk3
-BuildRequires:  cargo
 
 %description
 A cross-platform system tray application that lives in your notification
