@@ -50,8 +50,7 @@ VERSION="${VERSION#v}"
 OUTPUT_FILE="${OUTPUT_DIR}/rnazar-${VERSION}-x86_64.AppImage"
 
 echo "==> Creating AppImage at ${OUTPUT_FILE}..."
-export MKSQUASHFS_FLAGS="-comp xz -Xbcj x86 -b 1024K"
-ARCH=x86_64 "${APPIMAGETOOL}" --comp xz "${APPDIR}" "${OUTPUT_FILE}"
+ARCH=x86_64 "${APPIMAGETOOL}" --comp zstd "${APPDIR}" "${OUTPUT_FILE}"
 
 echo "==> Successfully created ${OUTPUT_FILE}!"
 
