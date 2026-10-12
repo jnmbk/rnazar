@@ -43,10 +43,11 @@ done
 INSTALLED_SIZE=$(du -sk "${BUILD_DIR}/usr" | cut -f1)
 
 # Generate control file
-sed -e "s/@VERSION@/${VERSION}/g" \
+sed -e "s/@PACKAGE@/rnazar/g" \
+    -e "s/@VERSION@/${VERSION}/g" \
     -e "s/@ARCH@/${ARCH}/g" \
+    -e "s/@INSTALLED_SIZE@/${INSTALLED_SIZE}/g" \
     "${ROOT_DIR}/packaging/debian/control.in" > "${BUILD_DIR}/DEBIAN/control"
-echo "Installed-Size: ${INSTALLED_SIZE}" >> "${BUILD_DIR}/DEBIAN/control"
 
 # Maintainer scripts
 install -m 755 "${ROOT_DIR}/packaging/debian/postinst" "${BUILD_DIR}/DEBIAN/postinst"

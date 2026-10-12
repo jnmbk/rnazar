@@ -1,12 +1,12 @@
-Package: rnazar
+Package: @PACKAGE@
 Version: @VERSION@
 Section: utils
 Priority: optional
 Architecture: @ARCH@
+Installed-Size: @INSTALLED_SIZE@
 Maintainer: jnmbk <noreply@github.com>
 Depends: libgtk-3-0 (>= 3.20), libc6 (>= 2.31)
 Homepage: https://github.com/jnmbk/rnazar
 Description: System tray evil eye ward and crash notifier
  A cross-platform system tray application that lives in your notification
  area and alerts you when applications crash with localized notifications.
-
