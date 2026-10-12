@@ -20,7 +20,7 @@ package() {
     cd "${srcdir}/rnazar"
 
     # Binary
-    install -Dm755 "target/release/rnazar" "${pkgdir}/usr/bin/rnazar"
+    install -s -Dm755 "target/release/rnazar" "${pkgdir}/usr/bin/rnazar"
 
     # Desktop & DBus
     install -Dm644 "assets/rnazar.desktop" "${pkgdir}/usr/share/applications/rnazar.desktop"

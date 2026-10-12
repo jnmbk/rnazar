@@ -19,7 +19,7 @@ mkdir -p "${OUTPUT_DIR}"
 PKGDIR="${BUILD_DIR}/pkg"
 
 # Binary
-install -Dm755 "${ROOT_DIR}/target/release/rnazar" "${PKGDIR}/usr/bin/rnazar"
+install -s -Dm755 "${ROOT_DIR}/target/release/rnazar" "${PKGDIR}/usr/bin/rnazar"
 
 # Desktop & DBus
 install -Dm644 "${ROOT_DIR}/assets/rnazar.desktop" "${PKGDIR}/usr/share/applications/rnazar.desktop"
@@ -58,7 +58,7 @@ EOF
 # Package into .pkg.tar.zst with reproducible settings
 (
     cd "${PKGDIR}"
-    tar --zstd -cf "${PKG_FILE}" .PKGINFO *
+    tar -I 'zstd -19 -T0' -cf "${PKG_FILE}" .PKGINFO *
 )
 
 echo "==> Successfully created Arch package at ${PKG_FILE}!"

@@ -23,7 +23,7 @@ mkdir -p "${BUILD_DIR}/usr/share/licenses/rnazar"
 mkdir -p "${OUTPUT_DIR}"
 
 # Binary
-install -m 755 "${ROOT_DIR}/target/release/rnazar" "${BUILD_DIR}/usr/bin/rnazar"
+install -s -m 755 "${ROOT_DIR}/target/release/rnazar" "${BUILD_DIR}/usr/bin/rnazar"
 
 # Desktop & DBus
 install -m 644 "${ROOT_DIR}/assets/rnazar.desktop" "${BUILD_DIR}/usr/share/applications/rnazar.desktop"
@@ -54,10 +54,11 @@ install -m 755 "${ROOT_DIR}/packaging/debian/postinst" "${BUILD_DIR}/DEBIAN/post
 install -m 755 "${ROOT_DIR}/packaging/debian/postrm" "${BUILD_DIR}/DEBIAN/postrm"
 
 DEB_FILE="${OUTPUT_DIR}/rnazar_${VERSION}_${ARCH}.deb"
+rm -f "${DEB_FILE}"
 
 echo "==> Building Debian package at ${DEB_FILE}..."
 if command -v dpkg-deb >/dev/null 2>&1; then
-    dpkg-deb --build --root-owner-group "${BUILD_DIR}" "${DEB_FILE}"
+    dpkg-deb -Zxz -z9 --build --root-owner-group "${BUILD_DIR}" "${DEB_FILE}"
 else
     # Fallback to standard ar / tar format if dpkg-deb is not installed
     echo "dpkg-deb not found, assembling .deb archive via tar and ar..."
@@ -65,8 +66,8 @@ else
         cd "${BUILD_DIR}"
         echo "2.0" > debian-binary
         tar --numeric-owner --group=0 --owner=0 -czf control.tar.gz -C DEBIAN .
-        tar --numeric-owner --group=0 --owner=0 -czf data.tar.gz ./usr
-        ar rcs "${DEB_FILE}" debian-binary control.tar.gz data.tar.gz
+        tar --numeric-owner --group=0 --owner=0 -cJf data.tar.xz ./usr
+        ar rcs "${DEB_FILE}" debian-binary control.tar.gz data.tar.xz
     )
 fi
 

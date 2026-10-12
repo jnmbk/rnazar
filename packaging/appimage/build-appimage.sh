@@ -18,7 +18,7 @@ mkdir -p "${APPDIR}/usr/share/dbus-1/services"
 mkdir -p "${OUTPUT_DIR}"
 
 # Copy binary
-cp "${ROOT_DIR}/target/release/rnazar" "${APPDIR}/usr/bin/rnazar"
+install -s -m 755 "${ROOT_DIR}/target/release/rnazar" "${APPDIR}/usr/bin/rnazar"
 
 # Copy AppRun
 cp "${ROOT_DIR}/packaging/appimage/AppRun" "${APPDIR}/AppRun"
@@ -26,7 +26,6 @@ chmod +x "${APPDIR}/AppRun"
 
 # Copy desktop and icon files
 cp "${ROOT_DIR}/assets/rnazar.desktop" "${APPDIR}/rnazar.desktop"
-cp "${ROOT_DIR}/assets/rnazar.desktop" "${APPDIR}/usr/share/applications/rnazar.desktop"
 cp "${ROOT_DIR}/assets/icons/png/256x256.png" "${APPDIR}/rnazar.png"
 ln -sf rnazar.png "${APPDIR}/.DirIcon"
 
@@ -51,7 +50,8 @@ VERSION="${VERSION#v}"
 OUTPUT_FILE="${OUTPUT_DIR}/rnazar-${VERSION}-x86_64.AppImage"
 
 echo "==> Creating AppImage at ${OUTPUT_FILE}..."
-ARCH=x86_64 "${APPIMAGETOOL}" "${APPDIR}" "${OUTPUT_FILE}"
+export MKSQUASHFS_FLAGS="-comp xz -Xbcj x86 -b 1024K"
+ARCH=x86_64 "${APPIMAGETOOL}" --comp xz "${APPDIR}" "${OUTPUT_FILE}"
 
 echo "==> Successfully created ${OUTPUT_FILE}!"
 

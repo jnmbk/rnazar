@@ -1,3 +1,5 @@
+%define _binary_payload w19.zstdio
+
 Name:           rnazar
 Version:        %{version}
 Release:        1%{?dist}
@@ -19,7 +21,7 @@ mkdir -p %{buildroot}%{_datadir}/icons/hicolor/scalable/apps
 mkdir -p %{buildroot}%{_datadir}/dbus-1/services
 mkdir -p %{buildroot}%{_datadir}/licenses/%{name}
 
-install -m 755 %{_sourcedir}/rnazar %{buildroot}%{_bindir}/rnazar
+install -s -m 755 %{_sourcedir}/rnazar %{buildroot}%{_bindir}/rnazar
 install -m 644 %{_sourcedir}/rnazar.desktop %{buildroot}%{_datadir}/applications/rnazar.desktop
 install -m 644 %{_sourcedir}/org.rnazar.Notifier.service %{buildroot}%{_datadir}/dbus-1/services/org.rnazar.Notifier.service
 install -m 644 %{_sourcedir}/LICENSE %{buildroot}%{_datadir}/licenses/%{name}/LICENSE

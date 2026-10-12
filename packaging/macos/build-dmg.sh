@@ -58,6 +58,9 @@ mkdir -p "${APP_BUNDLE}/Contents/Resources"
 mkdir -p "${OUTPUT_DIR}"
 
 cp "${BINARY_PATH}" "${APP_BUNDLE}/Contents/MacOS/rnazar"
+if command -v strip &>/dev/null; then
+    strip "${APP_BUNDLE}/Contents/MacOS/rnazar" 2>/dev/null || true
+fi
 chmod +x "${APP_BUNDLE}/Contents/MacOS/rnazar"
 cp "${ROOT_DIR}/packaging/macos/Info.plist" "${APP_BUNDLE}/Contents/Info.plist"
 
@@ -138,7 +141,7 @@ elif command -v hdiutil &>/dev/null; then
 
     sync
     hdiutil detach "${DEV}" 2>/dev/null || (sleep 2 && hdiutil detach "${DEV}" -force 2>/dev/null) || true
-    hdiutil convert "${TEMP_DMG}" -format UDZO -imagekey zlib-level=9 -ov -o "${DMG_PATH}"
+    hdiutil convert "${TEMP_DMG}" -format ULMO -ov -o "${DMG_PATH}"
     rm -f "${TEMP_DMG}"
     rm -rf "${STAGING_DIR}"
 
