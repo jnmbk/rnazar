@@ -7,7 +7,7 @@ pub const MENU_EXIT: &str = "Çıkış";
 
 pub const ABOUT_TITLE: &str = "rnazar Hakkında";
 pub const ABOUT_BODY: &str =
-    "rnazar v0.1.0\nSisteminiz için nazar boncuğu.\nUygulamalarınızı çökmelerden korur.";
+    "rnazar v0.1.0\nElemtere fiş, kem gözlere şiş.\nÇöken uygulamalarınızın icabına bakar.";
 
 pub const CRASH_TITLE: &str = "Nazar Değdi!";
 pub const CRASH_BODY: &str = "Nazar değdi ve icabına bakıldı.";

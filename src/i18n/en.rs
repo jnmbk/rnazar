@@ -7,7 +7,7 @@ pub const MENU_EXIT: &str = "Exit";
 
 pub const ABOUT_TITLE: &str = "About rnazar";
 pub const ABOUT_BODY: &str =
-    "rnazar v0.1.0\nThe evil eye ward for your system.\nProtects your apps from crashing.";
+    "rnazar v0.1.0\nA thorn in the heart, a stab in the eye.\nTakes care of your apps.";
 
 pub const CRASH_TITLE: &str = "Nazar Değdi!";
 pub const CRASH_BODY: &str = "An evil eye struck and it was taken care of.";
