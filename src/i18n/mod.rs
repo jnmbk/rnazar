@@ -103,7 +103,7 @@ impl Language {
     }
 
     pub fn crash_title(&self) -> &str {
-        self.gettext("Nazar Değdi!")
+        self.gettext("Evil eye!")
     }
 
     pub fn crash_body(&self, app: Option<&str>) -> String {

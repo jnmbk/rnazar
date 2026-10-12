@@ -1,6 +1,12 @@
 use rnazar::i18n::{Language, ResolvedLanguage};
 
 #[test]
+fn test_crash_title_translations() {
+    assert_eq!(Language::English.crash_title(), "Evil eye!");
+    assert_eq!(Language::Turkish.crash_title(), "Nazar değdi!");
+}
+
+#[test]
 fn test_turkish_crash_body_exact_match() {
     let lang = Language::Turkish;
     assert_eq!(lang.crash_body(None), "Nazar değdi ve icabına bakıldı.");

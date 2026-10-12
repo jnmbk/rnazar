@@ -43,11 +43,12 @@ msgstr "Inspired by knazar from Pardus 1.0"
 msgid "Inspiration"
 msgstr "Inspiration"
 
-msgid "Nazar Değdi!"
-msgstr "Nazar Değdi!"
+msgid "Evil eye!"
+msgstr "Evil eye!"
 
 msgid "An evil eye struck and it was taken care of."
 msgstr "An evil eye struck and it was taken care of."
 
 msgid "An evil eye struck {} and it was taken care of."
 msgstr "An evil eye struck {} and it was taken care of."
+

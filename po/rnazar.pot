@@ -42,7 +42,7 @@ msgstr ""
 msgid "Inspiration"
 msgstr ""
 
-msgid "Nazar Değdi!"
+msgid "Evil eye!"
 msgstr ""
 
 msgid "An evil eye struck and it was taken care of."
@@ -50,3 +50,4 @@ msgstr ""
 
 msgid "An evil eye struck {} and it was taken care of."
 msgstr ""
+

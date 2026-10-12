@@ -43,11 +43,12 @@ msgstr "Pardus 1.0 knazar uygulamasından esinlenilmiştir."
 msgid "Inspiration"
 msgstr "Esinlenme"
 
-msgid "Nazar Değdi!"
-msgstr "Nazar Değdi!"
+msgid "Evil eye!"
+msgstr "Nazar değdi!"
 
 msgid "An evil eye struck and it was taken care of."
 msgstr "Nazar değdi ve icabına bakıldı."
 
 msgid "An evil eye struck {} and it was taken care of."
 msgstr "{} uygulamasına nazar değdi ve icabına bakıldı."
+
