@@ -1,35 +1,102 @@
 use gettext::Catalog;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::sync::OnceLock;
 
-static TR_CATALOG: OnceLock<Catalog> = OnceLock::new();
-static EN_CATALOG: OnceLock<Catalog> = OnceLock::new();
+include!(concat!(env!("OUT_DIR"), "/locales_registry.rs"));
 
-const TR_MO_BYTES: &[u8] = include_bytes!("../../po/tr.mo");
-const EN_MO_BYTES: &[u8] = include_bytes!("../../po/en.mo");
+static CATALOGS: OnceLock<HashMap<&'static str, Catalog>> = OnceLock::new();
+static EMPTY_CATALOG: OnceLock<Catalog> = OnceLock::new();
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum Language {
     #[default]
     Auto,
+    #[serde(alias = "en")]
     English,
+    #[serde(alias = "tr")]
     Turkish,
+    #[serde(untagged)]
+    Custom(String),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ResolvedLanguage {
     English,
     Turkish,
+    Other(String),
+}
+
+impl ResolvedLanguage {
+    pub fn code(&self) -> &str {
+        match self {
+            ResolvedLanguage::English => "en",
+            ResolvedLanguage::Turkish => "tr",
+            ResolvedLanguage::Other(s) => s.as_str(),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct AvailableLanguage {
+    pub language: Language,
+    pub code: &'static str,
+    pub native_name: &'static str,
+}
+
+fn native_language_name(code: &str) -> &'static str {
+    match code.to_lowercase().as_str() {
+        "en" => "English",
+        "tr" => "Türkçe",
+        "de" => "Deutsch",
+        "fr" => "Français",
+        "es" => "Español",
+        "it" => "Italiano",
+        "pt" => "Português",
+        "ru" => "Русский",
+        "ja" => "日本語",
+        "zh" | "zh_cn" | "zh-cn" => "简体中文",
+        "zh_tw" | "zh-tw" => "繁體中文",
+        "ar" => "العربية",
+        "az" => "Azərbaycanca",
+        "nl" => "Nederlands",
+        "pl" => "Polski",
+        "uk" => "Українська",
+        _ => "Custom",
+    }
+}
+
+pub fn available_languages() -> Vec<AvailableLanguage> {
+    COMPILED_LOCALES
+        .iter()
+        .map(|&(code, _)| {
+            let lang = match code {
+                "en" => Language::English,
+                "tr" => Language::Turkish,
+                other => Language::Custom(other.to_string()),
+            };
+            AvailableLanguage {
+                language: lang,
+                code,
+                native_name: native_language_name(code),
+            }
+        })
+        .collect()
 }
 
 fn get_catalog(lang: ResolvedLanguage) -> &'static Catalog {
-    match lang {
-        ResolvedLanguage::Turkish => TR_CATALOG
-            .get_or_init(|| Catalog::parse(TR_MO_BYTES).unwrap_or_else(|_| Catalog::empty())),
-        ResolvedLanguage::English => EN_CATALOG
-            .get_or_init(|| Catalog::parse(EN_MO_BYTES).unwrap_or_else(|_| Catalog::empty())),
-    }
+    let empty = EMPTY_CATALOG.get_or_init(Catalog::empty);
+    let catalogs = CATALOGS.get_or_init(|| {
+        let mut map = HashMap::new();
+        for &(code, mo_bytes) in COMPILED_LOCALES {
+            let cat = Catalog::parse(mo_bytes).unwrap_or_else(|_| Catalog::empty());
+            map.insert(code, cat);
+        }
+        map
+    });
+
+    catalogs.get(lang.code()).unwrap_or(empty)
 }
 
 impl Language {
@@ -39,11 +106,19 @@ impl Language {
 
     pub fn detect_system_language() -> ResolvedLanguage {
         let loc = Self::get_system_locale_string().to_lowercase();
-        if loc.starts_with("tr") {
-            ResolvedLanguage::Turkish
-        } else {
-            ResolvedLanguage::English
+        for &(code, _) in COMPILED_LOCALES {
+            if loc == code
+                || loc.starts_with(&format!("{}-", code))
+                || loc.starts_with(&format!("{}_", code))
+            {
+                return match code {
+                    "en" => ResolvedLanguage::English,
+                    "tr" => ResolvedLanguage::Turkish,
+                    other => ResolvedLanguage::Other(other.to_string()),
+                };
+            }
         }
+        ResolvedLanguage::English
     }
 
     pub fn resolve(&self) -> ResolvedLanguage {
@@ -51,12 +126,31 @@ impl Language {
             Language::Auto => Self::detect_system_language(),
             Language::English => ResolvedLanguage::English,
             Language::Turkish => ResolvedLanguage::Turkish,
+            Language::Custom(ref s) => match s.to_lowercase().as_str() {
+                "en" | "english" => ResolvedLanguage::English,
+                "tr" | "turkish" => ResolvedLanguage::Turkish,
+                other => ResolvedLanguage::Other(other.to_string()),
+            },
         }
     }
 
     /// Translate a msg_id using the gettext catalog for the resolved language
     pub fn gettext<'a>(&self, msg_id: &'a str) -> &'a str {
         get_catalog(self.resolve()).gettext(msg_id)
+    }
+
+    /// Shorthand translation method alias
+    pub fn tr<'a>(&self, msg_id: &'a str) -> &'a str {
+        self.gettext(msg_id)
+    }
+
+    /// Translate with named argument replacement e.g. {app}
+    pub fn tr_fmt(&self, msg_id: &str, args: &[(&str, &str)]) -> String {
+        let mut template = self.gettext(msg_id).to_string();
+        for (k, v) in args {
+            template = template.replace(&format!("{{{}}}", k), v);
+        }
+        template
     }
 
     pub fn menu_language(&self) -> &str {
@@ -111,8 +205,14 @@ impl Language {
     pub fn crash_body(&self, app: Option<&str>) -> String {
         match app {
             Some(app_name) if !app_name.trim().is_empty() => {
-                let template = self.gettext("An evil eye struck {} and it was taken care of.");
-                template.replace("{}", app_name.trim())
+                let trimmed = app_name.trim();
+                let template = self.gettext("An evil eye struck {app} and it was taken care of.");
+                if template.contains("{app}") {
+                    template.replace("{app}", trimmed)
+                } else {
+                    self.gettext("An evil eye struck {} and it was taken care of.")
+                        .replace("{}", trimmed)
+                }
             }
             _ => self
                 .gettext("An evil eye struck and it was taken care of.")

@@ -92,6 +92,23 @@ cargo test
 
 ---
 
+## Localization (i18n)
+
+Translations are managed via [`cargo-i18n`](https://github.com/kellpossible/cargo-i18n) using the standard GNU Gettext format (`.po` / `.pot` files under [`po/`](po/)).
+
+At build time, [`build.rs`](build.rs) automatically compiles `.po` catalogs to binary `.mo` resources and embeds them into the executable with zero runtime or external dependencies.
+
+To extract updated strings and synchronize translation catalogs:
+```bash
+# Install cargo-i18n (once)
+cargo install cargo-i18n
+
+# Extract strings and synchronize .po files
+cargo i18n
+```
+
+---
+
 ## License
 
 Licensed under either of [Apache License, Version 2.0](LICENSE) or [MIT License](LICENSE).

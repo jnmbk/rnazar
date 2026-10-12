@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: rnazar 0.2.0\n"
 "Report-Msgid-Bugs-To: https://github.com/jnmbk/rnazar\n"
-"POT-Creation-Date: 2026-10-12 08:20+0300\n"
+"POT-Creation-Date: 2026-10-12 16:30\n"
 "PO-Revision-Date: 2026-10-12 08:20+0300\n"
 "Last-Translator: Uğur Çetin <ugur@ugurcetin.com.tr>\n"
 "Language-Team: Turkish\n"
@@ -16,39 +16,62 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
 
+#: src/i18n/mod.rs:136
 msgid "Language"
 msgstr "Dil"
 
+#: src/i18n/mod.rs:141
 msgid "Auto"
 msgstr "Otomatik"
 
+#: src/i18n/mod.rs:145
 msgid "English"
 msgstr "İngilizce"
 
+#: src/i18n/mod.rs:149
 msgid "Turkish"
 msgstr "Türkçe"
 
+#: src/i18n/mod.rs:153 src/i18n/mod.rs:161
 msgid "About rnazar"
 msgstr "rnazar Hakkında"
 
+#: src/i18n/mod.rs:157
 msgid "Exit"
 msgstr "Çıkış"
 
-msgid "A thorn in the heart, a stab in the eye.\nTakes care of your apps."
-msgstr "Elemtere fiş, kem gözlere şiş.\nÇöken uygulamalarınızın icabına bakar."
+#: src/i18n/mod.rs:168
+msgid ""
+"A thorn in the heart, a stab in the eye.\n"
+"Takes care of your apps."
+msgstr ""
+"Elemtere fiş, kem gözlere şiş.\n"
+"Çöken uygulamalarınızın icabına bakar."
 
+#: src/i18n/mod.rs:173
 msgid "Inspired by knazar from Pardus 1.0"
 msgstr "Pardus 1.0 knazar uygulamasından esinlenilmiştir."
 
+#: src/i18n/mod.rs:177
 msgid "Inspiration"
 msgstr "Esinlenme"
 
+#: src/i18n/mod.rs:181
 msgid "Evil eye!"
 msgstr "Nazar değdi!"
 
-msgid "An evil eye struck and it was taken care of."
-msgstr "Nazar değdi ve icabına bakıldı."
+#: src/i18n/mod.rs:188
+msgid "An evil eye struck {app} and it was taken care of."
+msgstr "{app} uygulamasına nazar değdi ve icabına bakıldı."
 
+#: src/i18n/mod.rs:192
 msgid "An evil eye struck {} and it was taken care of."
 msgstr "{} uygulamasına nazar değdi ve icabına bakıldı."
 
+#: src/i18n/mod.rs:197
+msgid "An evil eye struck and it was taken care of."
+msgstr "Nazar değdi ve icabına bakıldı."
+
+#: src/i18n/mod.rs:207
+msgid "Are you sure? Your computer will be vulnerable to the evil eye."
+msgstr "Emin misiniz? Bilgisayarınız nazara karşı savunmasız kalacak."

@@ -82,3 +82,75 @@ fn test_about_metadata() {
         .about_body()
         .contains(rnazar::about::APP_VERSION));
 }
+
+#[test]
+fn test_tr_fmt_named_interpolation() {
+    let lang = Language::Turkish;
+    let formatted = lang.tr_fmt(
+        "An evil eye struck {app} and it was taken care of.",
+        &[("app", "test_process")],
+    );
+    assert_eq!(
+        formatted,
+        "test_process uygulamasına nazar değdi ve icabına bakıldı."
+    );
+
+    let en_formatted = Language::English.tr_fmt(
+        "An evil eye struck {app} and it was taken care of.",
+        &[("app", "test_process")],
+    );
+    assert_eq!(
+        en_formatted,
+        "An evil eye struck test_process and it was taken care of."
+    );
+}
+
+#[test]
+fn test_available_languages_metadata() {
+    let langs = rnazar::i18n::available_languages();
+    assert!(langs.len() >= 2);
+
+    let en = langs
+        .iter()
+        .find(|l| l.code == "en")
+        .expect("en locale exists");
+    assert_eq!(en.native_name, "English");
+    assert_eq!(en.language, Language::English);
+
+    let tr = langs
+        .iter()
+        .find(|l| l.code == "tr")
+        .expect("tr locale exists");
+    assert_eq!(tr.native_name, "Türkçe");
+    assert_eq!(tr.language, Language::Turkish);
+}
+
+#[test]
+fn test_language_serde_backward_compatibility() {
+    use rnazar::config::AppConfig;
+
+    // Test legacy "turkish"
+    let json_tr = r#"{"language": "turkish"}"#;
+    let cfg_tr: AppConfig = serde_json::from_str(json_tr).expect("parse legacy turkish");
+    assert_eq!(cfg_tr.language, Language::Turkish);
+
+    // Test legacy "english"
+    let json_en = r#"{"language": "english"}"#;
+    let cfg_en: AppConfig = serde_json::from_str(json_en).expect("parse legacy english");
+    assert_eq!(cfg_en.language, Language::English);
+
+    // Test ISO-639 codes "tr" and "en"
+    let json_tr_code = r#"{"language": "tr"}"#;
+    let cfg_tr_code: AppConfig = serde_json::from_str(json_tr_code).expect("parse tr code");
+    assert_eq!(cfg_tr_code.language, Language::Turkish);
+
+    // Test auto
+    let json_auto = r#"{"language": "auto"}"#;
+    let cfg_auto: AppConfig = serde_json::from_str(json_auto).expect("parse auto");
+    assert_eq!(cfg_auto.language, Language::Auto);
+
+    // Test arbitrary locale e.g. "de"
+    let json_de = r#"{"language": "de"}"#;
+    let cfg_de: AppConfig = serde_json::from_str(json_de).expect("parse de");
+    assert_eq!(cfg_de.language, Language::Custom("de".to_string()));
+}

@@ -1,16 +1,20 @@
-use crate::i18n::Language;
+use crate::i18n::{available_languages, Language};
 use muda::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu};
 use std::error::Error;
 use tray_icon::{Icon, TrayIcon, TrayIconBuilder};
 
 const ICON_BYTES: &[u8] = include_bytes!("../assets/icons/png/32x32.png");
 
+pub struct LanguageMenuItem {
+    pub language: Language,
+    pub item: CheckMenuItem,
+}
+
 pub struct TrayMenuController {
     pub menu: Menu,
     pub lang_submenu: Submenu,
     pub item_lang_auto: CheckMenuItem,
-    pub item_lang_en: CheckMenuItem,
-    pub item_lang_tr: CheckMenuItem,
+    pub lang_items: Vec<LanguageMenuItem>,
     pub item_about: MenuItem,
     pub item_exit: MenuItem,
 }
@@ -25,23 +29,20 @@ impl TrayMenuController {
             current_lang == Language::Auto,
             None,
         );
-        let item_lang_en = CheckMenuItem::new(
-            current_lang.menu_lang_en(),
-            true,
-            current_lang == Language::English,
-            None,
-        );
-        let item_lang_tr = CheckMenuItem::new(
-            current_lang.menu_lang_tr(),
-            true,
-            current_lang == Language::Turkish,
-            None,
-        );
 
         let lang_submenu = Submenu::new(current_lang.menu_language(), true);
         lang_submenu.append(&item_lang_auto)?;
-        lang_submenu.append(&item_lang_en)?;
-        lang_submenu.append(&item_lang_tr)?;
+
+        let mut lang_items = Vec::new();
+        for avail in available_languages() {
+            let is_checked = current_lang == avail.language;
+            let item = CheckMenuItem::new(avail.native_name, true, is_checked, None);
+            lang_submenu.append(&item)?;
+            lang_items.push(LanguageMenuItem {
+                language: avail.language,
+                item,
+            });
+        }
 
         let item_about = MenuItem::new(current_lang.menu_about(), true, None);
         let item_sep = PredefinedMenuItem::separator();
@@ -56,23 +57,20 @@ impl TrayMenuController {
             menu,
             lang_submenu,
             item_lang_auto,
-            item_lang_en,
-            item_lang_tr,
+            lang_items,
             item_about,
             item_exit,
         })
     }
 
-    pub fn update_language(&self, lang: Language) {
+    pub fn update_language(&self, lang: &Language) {
         self.lang_submenu.set_text(lang.menu_language());
         self.item_lang_auto.set_text(lang.menu_lang_auto());
-        self.item_lang_auto.set_checked(lang == Language::Auto);
+        self.item_lang_auto.set_checked(lang == &Language::Auto);
 
-        self.item_lang_en.set_text(lang.menu_lang_en());
-        self.item_lang_en.set_checked(lang == Language::English);
-
-        self.item_lang_tr.set_text(lang.menu_lang_tr());
-        self.item_lang_tr.set_checked(lang == Language::Turkish);
+        for lang_item in &self.lang_items {
+            lang_item.item.set_checked(lang == &lang_item.language);
+        }
 
         self.item_about.set_text(lang.menu_about());
         self.item_exit.set_text(lang.menu_exit());

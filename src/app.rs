@@ -16,7 +16,7 @@ pub enum UserAppEvent {
 
 pub fn run_tray_application() -> Result<(), Box<dyn Error>> {
     let mut config = AppConfig::load();
-    let menu_controller = TrayMenuController::new(config.language)?;
+    let menu_controller = TrayMenuController::new(config.language.clone())?;
 
     // Build event loop with custom user events
     let event_loop = EventLoopBuilder::<UserAppEvent>::with_user_event().build();
@@ -57,25 +57,25 @@ pub fn run_tray_application() -> Result<(), Box<dyn Error>> {
                     "Crash notification triggered for: {:?}",
                     app_name.as_deref().unwrap_or("<unspecified>")
                 );
-                show_crash_notification(config.language, app_name.as_deref());
+                show_crash_notification(config.language.clone(), app_name.as_deref());
             }
             Event::UserEvent(UserAppEvent::MenuEvent(menu_event)) => {
                 let id = menu_event.id();
                 if id == menu_controller.item_lang_auto.id() {
                     config.language = Language::Auto;
                     config.save();
-                    menu_controller.update_language(config.language);
-                } else if id == menu_controller.item_lang_en.id() {
-                    config.language = Language::English;
+                    menu_controller.update_language(&config.language);
+                } else if let Some(target) = menu_controller
+                    .lang_items
+                    .iter()
+                    .find(|item| item.item.id() == id)
+                {
+                    config.language = target.language.clone();
                     config.save();
-                    menu_controller.update_language(config.language);
-                } else if id == menu_controller.item_lang_tr.id() {
-                    config.language = Language::Turkish;
-                    config.save();
-                    menu_controller.update_language(config.language);
+                    menu_controller.update_language(&config.language);
                 } else if id == menu_controller.item_about.id() {
                     log::debug!("About menu clicked, displaying about window...");
-                    crate::about::show_about_window(config.language);
+                    crate::about::show_about_window(config.language.clone());
                 } else if id == menu_controller.item_exit.id() {
                     let confirmed = rfd::MessageDialog::new()
                         .set_title(config.language.exit_confirm_title())

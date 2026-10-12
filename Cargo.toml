@@ -36,5 +36,5 @@ gdk-pixbuf = "0.18"
 winres = "0.1.12"
 
 [build-dependencies]
-# Standard build-deps
+rspolib = "0.1.2"
 

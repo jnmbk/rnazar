@@ -1,0 +1,10 @@
+# Configuration for cargo-i18n (https://github.com/kellpossible/cargo-i18n)
+fallback_language = "en"
+
+[gettext]
+target_languages = ["en", "tr"]
+output_dir = "po"
+pot_dir = "po"
+po_dir = "po"
+use_fuzzy = false
+

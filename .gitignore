@@ -24,4 +24,5 @@ squashfs-root/
 *.swp
 *.swo
 *~
-
+# Translations
+po/*.mo

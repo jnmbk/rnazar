@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: rnazar 0.2.0\n"
 "Report-Msgid-Bugs-To: https://github.com/jnmbk/rnazar\n"
-"POT-Creation-Date: 2026-10-12 08:20+0300\n"
+"POT-Creation-Date: 2026-10-12 16:30\n"
 "PO-Revision-Date: 2026-10-12 08:20+0300\n"
 "Last-Translator: Uğur Çetin <ugur@ugurcetin.com.tr>\n"
 "Language-Team: English\n"
@@ -16,39 +16,62 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#: src/i18n/mod.rs:136
 msgid "Language"
 msgstr "Language"
 
+#: src/i18n/mod.rs:141
 msgid "Auto"
 msgstr "Auto"
 
+#: src/i18n/mod.rs:145
 msgid "English"
 msgstr "English"
 
+#: src/i18n/mod.rs:149
 msgid "Turkish"
 msgstr "Turkish"
 
+#: src/i18n/mod.rs:153 src/i18n/mod.rs:161
 msgid "About rnazar"
 msgstr "About rnazar"
 
+#: src/i18n/mod.rs:157
 msgid "Exit"
 msgstr "Exit"
 
-msgid "A thorn in the heart, a stab in the eye.\nTakes care of your apps."
-msgstr "A thorn in the heart, a stab in the eye.\nTakes care of your apps."
+#: src/i18n/mod.rs:168
+msgid ""
+"A thorn in the heart, a stab in the eye.\n"
+"Takes care of your apps."
+msgstr ""
+"A thorn in the heart, a stab in the eye.\n"
+"Takes care of your apps."
 
+#: src/i18n/mod.rs:173
 msgid "Inspired by knazar from Pardus 1.0"
 msgstr "Inspired by knazar from Pardus 1.0"
 
+#: src/i18n/mod.rs:177
 msgid "Inspiration"
 msgstr "Inspiration"
 
+#: src/i18n/mod.rs:181
 msgid "Evil eye!"
 msgstr "Evil eye!"
 
-msgid "An evil eye struck and it was taken care of."
-msgstr "An evil eye struck and it was taken care of."
+#: src/i18n/mod.rs:188
+msgid "An evil eye struck {app} and it was taken care of."
+msgstr "An evil eye struck {app} and it was taken care of."
 
+#: src/i18n/mod.rs:192
 msgid "An evil eye struck {} and it was taken care of."
 msgstr "An evil eye struck {} and it was taken care of."
 
+#: src/i18n/mod.rs:197
+msgid "An evil eye struck and it was taken care of."
+msgstr "An evil eye struck and it was taken care of."
+
+#: src/i18n/mod.rs:207
+msgid "Are you sure? Your computer will be vulnerable to the evil eye."
+msgstr "Are you sure? Your computer will be vulnerable to the evil eye."
