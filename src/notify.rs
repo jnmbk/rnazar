@@ -25,13 +25,17 @@ pub fn show_crash_notification(language: Language, app_name: Option<&str>) {
     let res = notification.show();
 
     match res {
+        #[cfg(all(unix, not(target_os = "macos")))]
         Ok(handle) => {
             log::debug!(
                 "Desktop notification shown successfully (id={})",
                 handle.id()
             );
-            #[cfg(all(unix, not(target_os = "macos")))]
             keep_handle_alive(handle);
+        }
+        #[cfg(not(all(unix, not(target_os = "macos"))))]
+        Ok(_) => {
+            log::debug!("Desktop notification shown successfully");
         }
         Err(e) => log::warn!("Failed to show desktop notification: {}", e),
     }
@@ -69,10 +73,12 @@ pub fn show_about_notification(language: Language) {
     let res = notification.show();
 
     match res {
+        #[cfg(all(unix, not(target_os = "macos")))]
         Ok(handle) => {
-            #[cfg(all(unix, not(target_os = "macos")))]
             keep_handle_alive(handle);
         }
+        #[cfg(not(all(unix, not(target_os = "macos"))))]
+        Ok(_) => {}
         Err(e) => log::warn!("Failed to show about notification: {}", e),
     }
 }
