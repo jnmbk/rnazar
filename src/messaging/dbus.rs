@@ -42,18 +42,19 @@ pub fn run_dbus_server(tx: Sender<Option<String>>) {
 
                 match conn_res {
                     Ok(_conn) => {
+                        log::debug!("D-Bus service 'org.rnazar.Notifier' registered successfully.");
                         // Keep connection alive in thread loop
                         loop {
                             std::thread::park();
                         }
                     }
                     Err(e) => {
-                        eprintln!("Warning: Failed to register D-Bus service: {}", e);
+                        log::warn!("Failed to register D-Bus service: {}", e);
                     }
                 }
             }
             Err(e) => {
-                eprintln!("Warning: Failed to connect to D-Bus session bus: {}", e);
+                log::warn!("Failed to connect to D-Bus session bus: {}", e);
             }
         }
     });

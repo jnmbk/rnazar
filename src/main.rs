@@ -29,14 +29,21 @@ enum Commands {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("warn")).init();
+
     let cli = Cli::parse();
 
     if let Some(app_name) = cli.crash {
+        log::debug!("Triggering crash notification for: {}", app_name);
         trigger_crash_notification(Some(&app_name))?;
         return Ok(());
     }
 
     if let Some(Commands::Notify { app }) = cli.command {
+        log::debug!(
+            "Triggering crash notification for: {}",
+            app.as_deref().unwrap_or("<unspecified>")
+        );
         trigger_crash_notification(app.as_deref())?;
         return Ok(());
     }

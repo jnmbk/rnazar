@@ -42,7 +42,7 @@ mod unix_ipc {
                 });
             }
             Err(e) => {
-                eprintln!("Warning: Failed to bind Unix IPC socket: {}", e);
+                log::warn!("Failed to bind Unix IPC socket: {}", e);
             }
         }
     }
@@ -76,7 +76,7 @@ mod windows_ipc {
             let name = match PIPE_NAME.to_ns_name::<GenericNamespaced>() {
                 Ok(n) => n,
                 Err(e) => {
-                    eprintln!("Warning: Invalid Windows pipe name: {}", e);
+                    log::warn!("Invalid Windows pipe name: {}", e);
                     return;
                 }
             };
@@ -84,7 +84,7 @@ mod windows_ipc {
             let listener = match ListenerOptions::new().name(name).create_sync() {
                 Ok(l) => l,
                 Err(e) => {
-                    eprintln!("Warning: Failed to bind Windows IPC pipe: {}", e);
+                    log::warn!("Failed to bind Windows IPC pipe: {}", e);
                     return;
                 }
             };

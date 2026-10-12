@@ -13,7 +13,7 @@ pub fn show_crash_notification(language: Language, app_name: Option<&str>) {
         .show();
 
     if let Err(e) = res {
-        eprintln!("Warning: Failed to show desktop notification: {}", e);
+        log::warn!("Failed to show desktop notification: {}", e);
     }
 }
 
@@ -29,6 +29,6 @@ pub fn show_about_notification(language: Language) {
         .show();
 
     if let Err(e) = res {
-        eprintln!("Warning: Failed to show about notification: {}", e);
+        log::warn!("Failed to show about notification: {}", e);
     }
 }
