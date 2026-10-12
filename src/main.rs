@@ -1,3 +1,5 @@
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 use clap::{Parser, Subcommand};
 use rnazar::app::run_tray_application;
 use rnazar::messaging::trigger_crash_notification;
