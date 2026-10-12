@@ -1,13 +1,20 @@
 pub mod dbus;
 pub mod ipc;
 
-use std::sync::mpsc::Sender;
+use std::sync::Arc;
 
-pub fn start_desktop_messaging(tx: Sender<Option<String>>) {
+pub type CrashCallback = Arc<dyn Fn(Option<String>) + Send + Sync>;
+
+pub fn start_desktop_messaging<F>(callback: F)
+where
+    F: Fn(Option<String>) + Send + Sync + 'static,
+{
+    let cb: CrashCallback = Arc::new(callback);
+
     #[cfg(target_os = "linux")]
-    dbus::run_dbus_server(tx.clone());
+    dbus::run_dbus_server(cb.clone());
 
-    ipc::start_ipc_listener(tx);
+    ipc::start_ipc_listener(cb);
 }
 
 pub fn trigger_crash_notification(app: Option<&str>) -> Result<(), Box<dyn std::error::Error>> {

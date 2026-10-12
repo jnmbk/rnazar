@@ -1,17 +1,17 @@
 #[cfg(target_os = "linux")]
-use std::sync::mpsc::Sender;
+use crate::messaging::CrashCallback;
 #[cfg(target_os = "linux")]
 use zbus::interface;
 
 #[cfg(target_os = "linux")]
 pub struct DbusCrashService {
-    tx: Sender<Option<String>>,
+    callback: CrashCallback,
 }
 
 #[cfg(target_os = "linux")]
 impl DbusCrashService {
-    pub fn new(tx: Sender<Option<String>>) -> Self {
-        Self { tx }
+    pub fn new(callback: CrashCallback) -> Self {
+        Self { callback }
     }
 }
 
@@ -25,14 +25,17 @@ impl DbusCrashService {
         } else {
             Some(app_name)
         };
-        let _ = self.tx.send(app);
+        (self.callback)(app);
     }
 }
 
 #[cfg(target_os = "linux")]
-pub fn run_dbus_server(tx: Sender<Option<String>>) {
-    std::thread::spawn(move || {
-        let service = DbusCrashService::new(tx);
+pub fn run_dbus_server(callback: CrashCallback) {
+    let _ = std::thread::Builder::new()
+        .name("rnazar-dbus".into())
+        .stack_size(128 * 1024)
+        .spawn(move || {
+            let service = DbusCrashService::new(callback);
         match zbus::blocking::connection::Builder::session() {
             Ok(builder) => {
                 let conn_res = builder

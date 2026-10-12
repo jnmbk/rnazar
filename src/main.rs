@@ -31,6 +31,13 @@ enum Commands {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    #[cfg(target_os = "linux")]
+    {
+        std::env::set_var("NO_AT_BRIDGE", "1");
+        std::env::set_var("MALLOC_ARENA_MAX", "2");
+        std::env::set_var("MALLOC_TRIM_THRESHOLD_", "65536");
+    }
+
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("warn")).init();
 
     let cli = Cli::parse();

@@ -4,7 +4,6 @@ use crate::messaging::start_desktop_messaging;
 use crate::notify::show_crash_notification;
 use crate::tray::{build_tray_icon, TrayMenuController};
 use std::error::Error;
-use std::sync::mpsc::channel;
 use tao::event::{Event, StartCause};
 use tao::event_loop::{ControlFlow, EventLoopBuilder};
 
@@ -29,15 +28,9 @@ pub fn run_tray_application() -> Result<(), Box<dyn Error>> {
     }));
 
     // Start desktop messaging listeners (D-Bus on Linux, IPC on all platforms)
-    let (tx, rx) = channel::<Option<String>>();
-    start_desktop_messaging(tx);
-
-    // Forward incoming messaging crashes to event loop
     let crash_proxy = proxy.clone();
-    std::thread::spawn(move || {
-        while let Ok(app_name) = rx.recv() {
-            let _ = crash_proxy.send_event(UserAppEvent::CrashReport(app_name));
-        }
+    start_desktop_messaging(move |app_name| {
+        let _ = crash_proxy.send_event(UserAppEvent::CrashReport(app_name));
     });
 
     // Build tray icon (keep instance alive for event loop lifetime)
@@ -77,13 +70,34 @@ pub fn run_tray_application() -> Result<(), Box<dyn Error>> {
                     log::debug!("About menu clicked, displaying about window...");
                     crate::about::show_about_window(config.language.clone());
                 } else if id == menu_controller.item_exit.id() {
-                    let confirmed = rfd::MessageDialog::new()
-                        .set_title(config.language.exit_confirm_title())
-                        .set_description(config.language.exit_confirm_message())
-                        .set_buttons(rfd::MessageButtons::YesNo)
-                        .set_level(rfd::MessageLevel::Warning)
-                        .show();
-                    if confirmed == rfd::MessageDialogResult::Yes {
+                    #[cfg(target_os = "linux")]
+                    let confirmed = {
+                        use gtk::prelude::*;
+                        let dialog = gtk::MessageDialog::new(
+                            gtk::Window::NONE,
+                            gtk::DialogFlags::MODAL,
+                            gtk::MessageType::Warning,
+                            gtk::ButtonsType::YesNo,
+                            config.language.exit_confirm_message(),
+                        );
+                        dialog.set_title(config.language.exit_confirm_title());
+                        let response = dialog.run();
+                        dialog.close();
+                        response == gtk::ResponseType::Yes
+                    };
+
+                    #[cfg(not(target_os = "linux"))]
+                    let confirmed = {
+                        let res = rfd::MessageDialog::new()
+                            .set_title(config.language.exit_confirm_title())
+                            .set_description(config.language.exit_confirm_message())
+                            .set_buttons(rfd::MessageButtons::YesNo)
+                            .set_level(rfd::MessageLevel::Warning)
+                            .show();
+                        res == rfd::MessageDialogResult::Yes
+                    };
+
+                    if confirmed {
                         log::debug!("Exit menu clicked and confirmed! Exiting rnazar...");
                         *control_flow = ControlFlow::Exit;
                         std::process::exit(0);

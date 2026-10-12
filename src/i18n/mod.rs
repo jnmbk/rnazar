@@ -5,8 +5,6 @@ use std::sync::OnceLock;
 
 include!(concat!(env!("OUT_DIR"), "/locales_registry.rs"));
 
-static CATALOGS: OnceLock<HashMap<&'static str, Catalog>> = OnceLock::new();
-static EMPTY_CATALOG: OnceLock<Catalog> = OnceLock::new();
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
@@ -85,18 +83,33 @@ pub fn available_languages() -> Vec<AvailableLanguage> {
         .collect()
 }
 
+static EMPTY_CATALOG: OnceLock<Catalog> = OnceLock::new();
+static CACHE: OnceLock<std::sync::RwLock<HashMap<String, &'static Catalog>>> = OnceLock::new();
+
 fn get_catalog(lang: ResolvedLanguage) -> &'static Catalog {
     let empty = EMPTY_CATALOG.get_or_init(Catalog::empty);
-    let catalogs = CATALOGS.get_or_init(|| {
-        let mut map = HashMap::new();
-        for &(code, mo_bytes) in COMPILED_LOCALES {
-            let cat = Catalog::parse(mo_bytes).unwrap_or_else(|_| Catalog::empty());
-            map.insert(code, cat);
-        }
-        map
-    });
+    let lang_code = lang.code();
 
-    catalogs.get(lang.code()).unwrap_or(empty)
+    let cache = CACHE.get_or_init(|| std::sync::RwLock::new(HashMap::new()));
+
+    if let Ok(r) = cache.read() {
+        if let Some(&cat) = r.get(lang_code) {
+            return cat;
+        }
+    }
+
+    if let Ok(mut w) = cache.write() {
+        if let Some(&cat) = w.get(lang_code) {
+            return cat;
+        }
+        if let Some(&(_, mo_bytes)) = COMPILED_LOCALES.iter().find(|&&(code, _)| code == lang_code) {
+            let cat: &'static Catalog = Box::leak(Box::new(Catalog::parse(mo_bytes).unwrap_or_else(|_| Catalog::empty())));
+            w.insert(lang_code.to_string(), cat);
+            return cat;
+        }
+    }
+
+    empty
 }
 
 impl Language {

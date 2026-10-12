@@ -1,6 +1,6 @@
+use crate::messaging::CrashCallback;
 use serde::{Deserialize, Serialize};
 use std::io::{BufRead, BufReader, Write};
-use std::sync::mpsc::Sender;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct IpcCrashMessage {
@@ -21,25 +21,25 @@ mod unix_ipc {
         runtime_dir.join("rnazar.sock")
     }
 
-    pub fn start_ipc_server(tx: Sender<Option<String>>) {
+    pub fn start_ipc_server(cb: CrashCallback) {
         let path = socket_path();
         let _ = fs::remove_file(&path);
 
         match UnixListener::bind(&path) {
             Ok(listener) => {
-                std::thread::spawn(move || {
-                    for stream in listener.incoming().flatten() {
-                        let tx_clone = tx.clone();
-                        std::thread::spawn(move || {
+                let _ = std::thread::Builder::new()
+                    .name("rnazar-ipc".into())
+                    .stack_size(128 * 1024)
+                    .spawn(move || {
+                        for stream in listener.incoming().flatten() {
                             let reader = BufReader::new(stream);
                             for line in reader.lines().map_while(Result::ok) {
                                 if let Ok(msg) = serde_json::from_str::<IpcCrashMessage>(&line) {
-                                    let _ = tx_clone.send(msg.app_name);
+                                    cb(msg.app_name);
                                 }
                             }
-                        });
-                    }
-                });
+                        }
+                    });
             }
             Err(e) => {
                 log::warn!("Failed to bind Unix IPC socket: {}", e);
@@ -71,36 +71,36 @@ mod windows_ipc {
 
     const PIPE_NAME: &str = "@rnazar-messaging.sock";
 
-    pub fn start_ipc_server(tx: Sender<Option<String>>) {
-        std::thread::spawn(move || {
-            let name = match PIPE_NAME.to_ns_name::<GenericNamespaced>() {
-                Ok(n) => n,
-                Err(e) => {
-                    log::warn!("Invalid Windows pipe name: {}", e);
-                    return;
-                }
-            };
+    pub fn start_ipc_server(cb: CrashCallback) {
+        let _ = std::thread::Builder::new()
+            .name("rnazar-ipc".into())
+            .stack_size(128 * 1024)
+            .spawn(move || {
+                let name = match PIPE_NAME.to_ns_name::<GenericNamespaced>() {
+                    Ok(n) => n,
+                    Err(e) => {
+                        log::warn!("Invalid Windows pipe name: {}", e);
+                        return;
+                    }
+                };
 
-            let listener = match ListenerOptions::new().name(name).create_sync() {
-                Ok(l) => l,
-                Err(e) => {
-                    log::warn!("Failed to bind Windows IPC pipe: {}", e);
-                    return;
-                }
-            };
+                let listener = match ListenerOptions::new().name(name).create_sync() {
+                    Ok(l) => l,
+                    Err(e) => {
+                        log::warn!("Failed to bind Windows IPC pipe: {}", e);
+                        return;
+                    }
+                };
 
-            for conn in listener.incoming().flatten() {
-                let tx_clone = tx.clone();
-                std::thread::spawn(move || {
+                for conn in listener.incoming().flatten() {
                     let reader = BufReader::new(conn);
                     for line in reader.lines().map_while(Result::ok) {
                         if let Ok(msg) = serde_json::from_str::<IpcCrashMessage>(&line) {
-                            let _ = tx_clone.send(msg.app_name);
+                            cb(msg.app_name);
                         }
                     }
-                });
-            }
-        });
+                }
+            });
     }
 
     pub fn send_ipc_crash(app_name: Option<&str>) -> Result<(), Box<dyn std::error::Error>> {
@@ -117,12 +117,12 @@ mod windows_ipc {
     }
 }
 
-pub fn start_ipc_listener(tx: Sender<Option<String>>) {
+pub fn start_ipc_listener(cb: CrashCallback) {
     #[cfg(unix)]
-    unix_ipc::start_ipc_server(tx);
+    unix_ipc::start_ipc_server(cb);
 
     #[cfg(windows)]
-    windows_ipc::start_ipc_server(tx);
+    windows_ipc::start_ipc_server(cb);
 }
 
 pub fn trigger_ipc_crash(app_name: Option<&str>) -> Result<(), Box<dyn std::error::Error>> {

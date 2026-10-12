@@ -3,7 +3,7 @@ use muda::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu};
 use std::error::Error;
 use tray_icon::{Icon, TrayIcon, TrayIconBuilder};
 
-const ICON_BYTES: &[u8] = include_bytes!("../assets/icons/png/32x32.png");
+const ICON_RGBA: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/tray_icon_32x32.rgba"));
 
 pub struct LanguageMenuItem {
     pub language: Language,
@@ -78,10 +78,7 @@ impl TrayMenuController {
 }
 
 pub fn load_tray_icon() -> Result<Icon, Box<dyn Error>> {
-    let img = image::load_from_memory(ICON_BYTES)?;
-    let rgba = img.into_rgba8();
-    let (width, height) = rgba.dimensions();
-    let icon = Icon::from_rgba(rgba.into_raw(), width, height)?;
+    let icon = Icon::from_rgba(ICON_RGBA.to_vec(), 32, 32)?;
     Ok(icon)
 }
 

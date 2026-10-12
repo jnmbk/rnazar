@@ -4,11 +4,22 @@ fn main() {
     println!("cargo:rerun-if-changed=po");
     compile_po_files();
 
+    println!("cargo:rerun-if-changed=assets/icons/png/32x32.png");
+    compile_tray_icon();
+
     let version = get_app_version();
     println!("cargo:rustc-env=APP_VERSION={version}");
 
     #[cfg(windows)]
     compile_windows_resources(&version);
+}
+
+fn compile_tray_icon() {
+    let out_dir = std::path::PathBuf::from(std::env::var("OUT_DIR").unwrap());
+    let icon_bytes = std::fs::read("assets/icons/png/32x32.png").expect("Failed to read 32x32 tray icon");
+    let img = image::load_from_memory(&icon_bytes).expect("Failed to decode tray icon PNG");
+    let rgba = img.into_rgba8();
+    std::fs::write(out_dir.join("tray_icon_32x32.rgba"), rgba.as_raw()).expect("Failed to write tray icon raw bytes");
 }
 
 fn get_app_version() -> String {
