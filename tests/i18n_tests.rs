@@ -44,7 +44,21 @@ fn test_menu_strings_non_empty() {
         assert!(!lang.about_body().is_empty());
         assert!(!lang.crash_title().is_empty());
         assert!(!lang.menu_lang_auto().is_empty());
+        assert!(!lang.exit_confirm_title().is_empty());
+        assert!(!lang.exit_confirm_message().is_empty());
     }
+}
+
+#[test]
+fn test_exit_confirm_message_translations() {
+    assert_eq!(
+        Language::Turkish.exit_confirm_message(),
+        "Emin misiniz? Bilgisayarınız nazara karşı savunmasız kalacak."
+    );
+    assert_eq!(
+        Language::English.exit_confirm_message(),
+        "Are you sure? Your computer will be vulnerable to the evil eye."
+    );
 }
 
 #[test]

@@ -77,9 +77,17 @@ pub fn run_tray_application() -> Result<(), Box<dyn Error>> {
                     log::debug!("About menu clicked, displaying about window...");
                     crate::about::show_about_window(config.language);
                 } else if id == menu_controller.item_exit.id() {
-                    log::debug!("Exit menu clicked! Exiting rnazar...");
-                    *control_flow = ControlFlow::Exit;
-                    std::process::exit(0);
+                    let confirmed = rfd::MessageDialog::new()
+                        .set_title(config.language.exit_confirm_title())
+                        .set_description(config.language.exit_confirm_message())
+                        .set_buttons(rfd::MessageButtons::YesNo)
+                        .set_level(rfd::MessageLevel::Warning)
+                        .show();
+                    if confirmed == rfd::MessageDialogResult::Yes {
+                        log::debug!("Exit menu clicked and confirmed! Exiting rnazar...");
+                        *control_flow = ControlFlow::Exit;
+                        std::process::exit(0);
+                    }
                 }
             }
             _ => {}

@@ -119,4 +119,12 @@ impl Language {
                 .to_string(),
         }
     }
+
+    pub fn exit_confirm_title(&self) -> &str {
+        "rnazar"
+    }
+
+    pub fn exit_confirm_message(&self) -> &str {
+        self.gettext("Are you sure? Your computer will be vulnerable to the evil eye.")
+    }
 }

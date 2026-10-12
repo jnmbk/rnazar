@@ -51,3 +51,6 @@ msgstr ""
 msgid "An evil eye struck {} and it was taken care of."
 msgstr ""
 
+msgid "Are you sure? Your computer will be vulnerable to the evil eye."
+msgstr ""
+
