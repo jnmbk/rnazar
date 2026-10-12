@@ -34,7 +34,8 @@ pub fn show_about_window(lang: Language) {
         dialog.close();
     });
 
-    dialog.show();
+    dialog.show_all();
+    dialog.present();
 }
 
 #[cfg(not(target_os = "linux"))]

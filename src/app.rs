@@ -11,7 +11,7 @@ use tao::event_loop::{ControlFlow, EventLoopBuilder};
 #[derive(Debug)]
 pub enum UserAppEvent {
     CrashReport(Option<String>),
-    MenuEvent,
+    MenuEvent(muda::MenuEvent),
 }
 
 pub fn run_tray_application() -> Result<(), Box<dyn Error>> {
@@ -24,8 +24,8 @@ pub fn run_tray_application() -> Result<(), Box<dyn Error>> {
 
     // Hook muda menu events to wake up tao event loop
     let menu_proxy = proxy.clone();
-    muda::MenuEvent::set_event_handler(Some(move |_| {
-        let _ = menu_proxy.send_event(UserAppEvent::MenuEvent);
+    muda::MenuEvent::set_event_handler(Some(move |event| {
+        let _ = menu_proxy.send_event(UserAppEvent::MenuEvent(event));
     }));
 
     // Start desktop messaging listeners (D-Bus on Linux, IPC on all platforms)
@@ -59,28 +59,27 @@ pub fn run_tray_application() -> Result<(), Box<dyn Error>> {
                 );
                 show_crash_notification(config.language, app_name.as_deref());
             }
-            Event::UserEvent(UserAppEvent::MenuEvent) => {
-                while let Ok(menu_event) = muda::MenuEvent::receiver().try_recv() {
-                    let id = menu_event.id();
-                    if id == menu_controller.item_lang_auto.id() {
-                        config.language = Language::Auto;
-                        config.save();
-                        menu_controller.update_language(config.language);
-                    } else if id == menu_controller.item_lang_en.id() {
-                        config.language = Language::English;
-                        config.save();
-                        menu_controller.update_language(config.language);
-                    } else if id == menu_controller.item_lang_tr.id() {
-                        config.language = Language::Turkish;
-                        config.save();
-                        menu_controller.update_language(config.language);
-                    } else if id == menu_controller.item_about.id() {
-                        crate::about::show_about_window(config.language);
-                    } else if id == menu_controller.item_exit.id() {
-                        println!("Exiting rnazar...");
-                        *control_flow = ControlFlow::Exit;
-                        std::process::exit(0);
-                    }
+            Event::UserEvent(UserAppEvent::MenuEvent(menu_event)) => {
+                let id = menu_event.id();
+                if id == menu_controller.item_lang_auto.id() {
+                    config.language = Language::Auto;
+                    config.save();
+                    menu_controller.update_language(config.language);
+                } else if id == menu_controller.item_lang_en.id() {
+                    config.language = Language::English;
+                    config.save();
+                    menu_controller.update_language(config.language);
+                } else if id == menu_controller.item_lang_tr.id() {
+                    config.language = Language::Turkish;
+                    config.save();
+                    menu_controller.update_language(config.language);
+                } else if id == menu_controller.item_about.id() {
+                    println!("About menu clicked, displaying about window...");
+                    crate::about::show_about_window(config.language);
+                } else if id == menu_controller.item_exit.id() {
+                    println!("Exit menu clicked! Exiting rnazar...");
+                    *control_flow = ControlFlow::Exit;
+                    std::process::exit(0);
                 }
             }
             _ => {}
