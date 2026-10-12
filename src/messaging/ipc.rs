@@ -39,7 +39,8 @@ mod unix_ipc {
                             std::thread::spawn(move || {
                                 let reader = BufReader::new(stream);
                                 for line in reader.lines().map_while(Result::ok) {
-                                    if let Ok(msg) = serde_json::from_str::<IpcCrashMessage>(&line) {
+                                    if let Ok(msg) = serde_json::from_str::<IpcCrashMessage>(&line)
+                                    {
                                         cb(msg.app_name);
                                     }
                                 }
