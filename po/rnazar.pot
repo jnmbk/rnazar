@@ -4,7 +4,7 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: rnazar 0.4.0\n"
+"Project-Id-Version: rnazar 0.5.0\n"
 "Report-Msgid-Bugs-To: https://github.com/jnmbk/rnazar\n"
 "POT-Creation-Date: 2026-10-12 16:42\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
