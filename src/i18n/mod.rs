@@ -5,7 +5,6 @@ use std::sync::OnceLock;
 
 include!(concat!(env!("OUT_DIR"), "/locales_registry.rs"));
 
-
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum Language {
@@ -102,8 +101,13 @@ fn get_catalog(lang: ResolvedLanguage) -> &'static Catalog {
         if let Some(&cat) = w.get(lang_code) {
             return cat;
         }
-        if let Some(&(_, mo_bytes)) = COMPILED_LOCALES.iter().find(|&&(code, _)| code == lang_code) {
-            let cat: &'static Catalog = Box::leak(Box::new(Catalog::parse(mo_bytes).unwrap_or_else(|_| Catalog::empty())));
+        if let Some(&(_, mo_bytes)) = COMPILED_LOCALES
+            .iter()
+            .find(|&&(code, _)| code == lang_code)
+        {
+            let cat: &'static Catalog = Box::leak(Box::new(
+                Catalog::parse(mo_bytes).unwrap_or_else(|_| Catalog::empty()),
+            ));
             w.insert(lang_code.to_string(), cat);
             return cat;
         }

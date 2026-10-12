@@ -15,10 +15,14 @@ mod unix_ipc {
     use std::path::PathBuf;
 
     fn socket_path() -> PathBuf {
-        let runtime_dir = dirs::runtime_dir()
-            .or_else(|| std::env::var_os("TMPDIR").map(PathBuf::from))
-            .unwrap_or_else(|| PathBuf::from("/tmp"));
-        runtime_dir.join("rnazar.sock")
+        if let Some(runtime_dir) = dirs::runtime_dir() {
+            return runtime_dir.join("rnazar.sock");
+        }
+        let uid = unsafe { libc::getuid() };
+        let tmp = std::env::var_os("TMPDIR")
+            .map(PathBuf::from)
+            .unwrap_or_else(std::env::temp_dir);
+        tmp.join(format!("rnazar-{uid}.sock"))
     }
 
     pub fn start_ipc_server(cb: CrashCallback) {
@@ -29,27 +33,37 @@ mod unix_ipc {
             Ok(listener) => {
                 let _ = std::thread::Builder::new()
                     .name("rnazar-ipc".into())
-                    .stack_size(128 * 1024)
                     .spawn(move || {
                         for stream in listener.incoming().flatten() {
-                            let reader = BufReader::new(stream);
-                            for line in reader.lines().map_while(Result::ok) {
-                                if let Ok(msg) = serde_json::from_str::<IpcCrashMessage>(&line) {
-                                    cb(msg.app_name);
+                            let cb = cb.clone();
+                            std::thread::spawn(move || {
+                                let reader = BufReader::new(stream);
+                                for line in reader.lines().map_while(Result::ok) {
+                                    if let Ok(msg) = serde_json::from_str::<IpcCrashMessage>(&line) {
+                                        cb(msg.app_name);
+                                    }
                                 }
-                            }
+                            });
                         }
                     });
             }
             Err(e) => {
-                log::warn!("Failed to bind Unix IPC socket: {}", e);
+                log::warn!("Failed to bind Unix IPC socket at {:?}: {}", path, e);
             }
         }
     }
 
     pub fn send_ipc_crash(app_name: Option<&str>) -> Result<(), Box<dyn std::error::Error>> {
         let path = socket_path();
-        let mut stream = UnixStream::connect(path)?;
+        let mut stream = UnixStream::connect(&path).or_else(|orig_err| {
+            let uid = unsafe { libc::getuid() };
+            let fallback = PathBuf::from(format!("/tmp/rnazar-{uid}.sock"));
+            if fallback != path {
+                UnixStream::connect(fallback)
+            } else {
+                Err(orig_err)
+            }
+        })?;
         let msg = IpcCrashMessage {
             app_name: app_name.map(|s| s.to_string()),
         };
@@ -69,12 +83,11 @@ mod windows_ipc {
         GenericNamespaced, ListenerOptions, Stream, ToNsName,
     };
 
-    const PIPE_NAME: &str = "@rnazar-messaging.sock";
+    const PIPE_NAME: &str = "rnazar-messaging.sock";
 
     pub fn start_ipc_server(cb: CrashCallback) {
         let _ = std::thread::Builder::new()
             .name("rnazar-ipc".into())
-            .stack_size(128 * 1024)
             .spawn(move || {
                 let name = match PIPE_NAME.to_ns_name::<GenericNamespaced>() {
                     Ok(n) => n,
@@ -93,12 +106,15 @@ mod windows_ipc {
                 };
 
                 for conn in listener.incoming().flatten() {
-                    let reader = BufReader::new(conn);
-                    for line in reader.lines().map_while(Result::ok) {
-                        if let Ok(msg) = serde_json::from_str::<IpcCrashMessage>(&line) {
-                            cb(msg.app_name);
+                    let cb = cb.clone();
+                    std::thread::spawn(move || {
+                        let reader = BufReader::new(conn);
+                        for line in reader.lines().map_while(Result::ok) {
+                            if let Ok(msg) = serde_json::from_str::<IpcCrashMessage>(&line) {
+                                cb(msg.app_name);
+                            }
                         }
-                    }
+                    });
                 }
             });
     }

@@ -33,34 +33,35 @@ impl DbusCrashService {
 pub fn run_dbus_server(callback: CrashCallback) {
     let _ = std::thread::Builder::new()
         .name("rnazar-dbus".into())
-        .stack_size(128 * 1024)
         .spawn(move || {
             let service = DbusCrashService::new(callback);
-        match zbus::blocking::connection::Builder::session() {
-            Ok(builder) => {
-                let conn_res = builder
-                    .name("org.rnazar.Notifier")
-                    .and_then(|b| b.serve_at("/org/rnazar/Notifier", service))
-                    .and_then(|b| b.build());
+            match zbus::blocking::connection::Builder::session() {
+                Ok(builder) => {
+                    let conn_res = builder
+                        .name("org.rnazar.Notifier")
+                        .and_then(|b| b.serve_at("/org/rnazar/Notifier", service))
+                        .and_then(|b| b.build());
 
-                match conn_res {
-                    Ok(_conn) => {
-                        log::debug!("D-Bus service 'org.rnazar.Notifier' registered successfully.");
-                        // Keep connection alive in thread loop
-                        loop {
-                            std::thread::park();
+                    match conn_res {
+                        Ok(_conn) => {
+                            log::debug!(
+                                "D-Bus service 'org.rnazar.Notifier' registered successfully."
+                            );
+                            // Keep connection alive in thread loop
+                            loop {
+                                std::thread::park();
+                            }
+                        }
+                        Err(e) => {
+                            log::warn!("Failed to register D-Bus service: {}", e);
                         }
                     }
-                    Err(e) => {
-                        log::warn!("Failed to register D-Bus service: {}", e);
-                    }
+                }
+                Err(e) => {
+                    log::warn!("Failed to connect to D-Bus session bus: {}", e);
                 }
             }
-            Err(e) => {
-                log::warn!("Failed to connect to D-Bus session bus: {}", e);
-            }
-        }
-    });
+        });
 }
 
 #[cfg(target_os = "linux")]
