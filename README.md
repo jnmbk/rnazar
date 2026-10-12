@@ -63,6 +63,42 @@ To build locally:
 ./packaging/appimage/build-appimage.sh
 ```
 
+### Linux (Debian / Ubuntu)
+Download `rnazar_<version>_amd64.deb` from GitHub Releases and install:
+```bash
+sudo dpkg -i rnazar_<version>_amd64.deb
+sudo apt-get install -f # resolve any missing dependencies if needed
+```
+
+To build locally:
+```bash
+./packaging/debian/build-deb.sh
+```
+
+### Linux (Fedora / RHEL)
+Download `rnazar-<version>-1.x86_64.rpm` from GitHub Releases and install:
+```bash
+sudo dnf install ./rnazar-<version>-1.x86_64.rpm
+```
+
+To build locally:
+```bash
+./packaging/fedora/build-rpm.sh
+```
+
+### Linux (Arch Linux)
+Download `rnazar-<version>-1-x86_64.pkg.tar.zst` from GitHub Releases and install:
+```bash
+sudo pacman -U rnazar-<version>-1-x86_64.pkg.tar.zst
+```
+
+Or build with `makepkg` or the package script:
+```bash
+cd packaging/arch && makepkg -si
+# or
+./packaging/arch/build-arch.sh
+```
+
 ### Windows (Inno Setup)
 Download and run `rnazar-vX.Y.Z-windows-x64-setup.exe` from Releases. It will install the application to `Program Files`, create Start Menu and Desktop shortcuts with the Nazar icon, and optionally enable startup on boot.
 
