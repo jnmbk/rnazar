@@ -42,7 +42,6 @@ pub fn run_dbus_server(tx: Sender<Option<String>>) {
 
                 match conn_res {
                     Ok(_conn) => {
-                        println!("D-Bus service 'org.rnazar.Notifier' registered successfully.");
                         // Keep connection alive in thread loop
                         loop {
                             std::thread::park();

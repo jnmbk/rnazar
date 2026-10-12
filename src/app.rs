@@ -43,8 +43,6 @@ pub fn run_tray_application() -> Result<(), Box<dyn Error>> {
     // Build tray icon (keep instance alive for event loop lifetime)
     let _tray_icon = build_tray_icon(menu_controller.menu.clone())?;
 
-    println!("rnazar system tray active. Running event loop...");
-
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
 
@@ -53,10 +51,6 @@ pub fn run_tray_application() -> Result<(), Box<dyn Error>> {
                 // Initial setup complete
             }
             Event::UserEvent(UserAppEvent::CrashReport(app_name)) => {
-                println!(
-                    "Crash notification triggered for: {:?}",
-                    app_name.as_deref().unwrap_or("<unspecified>")
-                );
                 show_crash_notification(config.language, app_name.as_deref());
             }
             Event::UserEvent(UserAppEvent::MenuEvent(menu_event)) => {
@@ -74,10 +68,8 @@ pub fn run_tray_application() -> Result<(), Box<dyn Error>> {
                     config.save();
                     menu_controller.update_language(config.language);
                 } else if id == menu_controller.item_about.id() {
-                    println!("About menu clicked, displaying about window...");
                     crate::about::show_about_window(config.language);
                 } else if id == menu_controller.item_exit.id() {
-                    println!("Exit menu clicked! Exiting rnazar...");
                     *control_flow = ControlFlow::Exit;
                     std::process::exit(0);
                 }

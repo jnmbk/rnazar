@@ -32,16 +32,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
 
     if let Some(app_name) = cli.crash {
-        println!("Triggering crash notification for: {}", app_name);
         trigger_crash_notification(Some(&app_name))?;
         return Ok(());
     }
 
     if let Some(Commands::Notify { app }) = cli.command {
-        println!(
-            "Triggering crash notification for: {}",
-            app.as_deref().unwrap_or("<unspecified>")
-        );
         trigger_crash_notification(app.as_deref())?;
         return Ok(());
     }
