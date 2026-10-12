@@ -1,0 +1,53 @@
+# English translations for rnazar.
+# Copyright (C) 2026 Uğur Çetin
+# This file is distributed under the same license as the rnazar package.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: rnazar 0.1.0\n"
+"Report-Msgid-Bugs-To: https://github.com/jnmbk/rnazar\n"
+"POT-Creation-Date: 2026-10-12 08:20+0300\n"
+"PO-Revision-Date: 2026-10-12 08:20+0300\n"
+"Last-Translator: Uğur Çetin <ugur@ugurcetin.com.tr>\n"
+"Language-Team: English\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Language"
+msgstr "Language"
+
+msgid "Auto"
+msgstr "Auto"
+
+msgid "English"
+msgstr "English"
+
+msgid "Turkish"
+msgstr "Turkish"
+
+msgid "About rnazar"
+msgstr "About rnazar"
+
+msgid "Exit"
+msgstr "Exit"
+
+msgid "rnazar v0.1.0\nA thorn in the heart, a stab in the eye.\nTakes care of your apps."
+msgstr "rnazar v0.1.0\nA thorn in the heart, a stab in the eye.\nTakes care of your apps."
+
+msgid "Inspired by knazar from Pardus 1.0"
+msgstr "Inspired by knazar from Pardus 1.0"
+
+msgid "Inspiration"
+msgstr "Inspiration"
+
+msgid "Nazar Değdi!"
+msgstr "Nazar Değdi!"
+
+msgid "An evil eye struck and it was taken care of."
+msgstr "An evil eye struck and it was taken care of."
+
+msgid "An evil eye struck {} and it was taken care of."
+msgstr "An evil eye struck {} and it was taken care of."

@@ -1,0 +1,52 @@
+# Translation template for rnazar.
+# Copyright (C) 2026 Uğur Çetin
+# This file is distributed under the same license as the rnazar package.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: rnazar 0.1.0\n"
+"Report-Msgid-Bugs-To: https://github.com/jnmbk/rnazar\n"
+"POT-Creation-Date: 2026-10-12 08:20+0300\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Language"
+msgstr ""
+
+msgid "Auto"
+msgstr ""
+
+msgid "English"
+msgstr ""
+
+msgid "Turkish"
+msgstr ""
+
+msgid "About rnazar"
+msgstr ""
+
+msgid "Exit"
+msgstr ""
+
+msgid "rnazar v0.1.0\nA thorn in the heart, a stab in the eye.\nTakes care of your apps."
+msgstr ""
+
+msgid "Inspired by knazar from Pardus 1.0"
+msgstr ""
+
+msgid "Inspiration"
+msgstr ""
+
+msgid "Nazar Değdi!"
+msgstr ""
+
+msgid "An evil eye struck and it was taken care of."
+msgstr ""
+
+msgid "An evil eye struck {} and it was taken care of."
+msgstr ""

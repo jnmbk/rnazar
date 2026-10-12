@@ -1,7 +1,12 @@
-pub mod en;
-pub mod tr;
-
+use gettext::Catalog;
 use serde::{Deserialize, Serialize};
+use std::sync::OnceLock;
+
+static TR_CATALOG: OnceLock<Catalog> = OnceLock::new();
+static EN_CATALOG: OnceLock<Catalog> = OnceLock::new();
+
+const TR_MO_BYTES: &[u8] = include_bytes!("../../po/tr.mo");
+const EN_MO_BYTES: &[u8] = include_bytes!("../../po/en.mo");
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
@@ -16,6 +21,15 @@ pub enum Language {
 pub enum ResolvedLanguage {
     English,
     Turkish,
+}
+
+fn get_catalog(lang: ResolvedLanguage) -> &'static Catalog {
+    match lang {
+        ResolvedLanguage::Turkish => TR_CATALOG
+            .get_or_init(|| Catalog::parse(TR_MO_BYTES).unwrap_or_else(|_| Catalog::empty())),
+        ResolvedLanguage::English => EN_CATALOG
+            .get_or_init(|| Catalog::parse(EN_MO_BYTES).unwrap_or_else(|_| Catalog::empty())),
+    }
 }
 
 impl Language {
@@ -40,80 +54,67 @@ impl Language {
         }
     }
 
-    pub fn menu_language(&self) -> &'static str {
-        match self.resolve() {
-            ResolvedLanguage::English => en::MENU_LANGUAGE,
-            ResolvedLanguage::Turkish => tr::MENU_LANGUAGE,
-        }
+    /// Translate a msg_id using the gettext catalog for the resolved language
+    pub fn gettext<'a>(&self, msg_id: &'a str) -> &'a str {
+        get_catalog(self.resolve()).gettext(msg_id)
+    }
+
+    pub fn menu_language(&self) -> &str {
+        self.gettext("Language")
     }
 
     pub fn menu_lang_auto(&self) -> String {
         let system_loc = Self::get_system_locale_string();
-        match self.resolve() {
-            ResolvedLanguage::English => format!("{} ({})", en::MENU_LANG_AUTO, system_loc),
-            ResolvedLanguage::Turkish => format!("{} ({})", tr::MENU_LANG_AUTO, system_loc),
-        }
+        format!("{} ({})", self.gettext("Auto"), system_loc)
     }
 
-    pub fn menu_lang_en(&self) -> &'static str {
-        match self.resolve() {
-            ResolvedLanguage::English => en::MENU_LANG_EN,
-            ResolvedLanguage::Turkish => tr::MENU_LANG_EN,
-        }
+    pub fn menu_lang_en(&self) -> &str {
+        self.gettext("English")
     }
 
-    pub fn menu_lang_tr(&self) -> &'static str {
-        match self.resolve() {
-            ResolvedLanguage::English => en::MENU_LANG_TR,
-            ResolvedLanguage::Turkish => tr::MENU_LANG_TR,
-        }
+    pub fn menu_lang_tr(&self) -> &str {
+        self.gettext("Turkish")
     }
 
-    pub fn menu_about(&self) -> &'static str {
-        match self.resolve() {
-            ResolvedLanguage::English => en::MENU_ABOUT,
-            ResolvedLanguage::Turkish => tr::MENU_ABOUT,
-        }
+    pub fn menu_about(&self) -> &str {
+        self.gettext("About rnazar")
     }
 
-    pub fn menu_exit(&self) -> &'static str {
-        match self.resolve() {
-            ResolvedLanguage::English => en::MENU_EXIT,
-            ResolvedLanguage::Turkish => tr::MENU_EXIT,
-        }
+    pub fn menu_exit(&self) -> &str {
+        self.gettext("Exit")
     }
 
-    pub fn about_title(&self) -> &'static str {
-        match self.resolve() {
-            ResolvedLanguage::English => en::ABOUT_TITLE,
-            ResolvedLanguage::Turkish => tr::ABOUT_TITLE,
-        }
+    pub fn about_title(&self) -> &str {
+        self.gettext("About rnazar")
     }
 
-    pub fn about_body(&self) -> &'static str {
-        match self.resolve() {
-            ResolvedLanguage::English => en::ABOUT_BODY,
-            ResolvedLanguage::Turkish => tr::ABOUT_BODY,
-        }
+    pub fn about_body(&self) -> &str {
+        self.gettext(
+            "rnazar v0.1.0\nA thorn in the heart, a stab in the eye.\nTakes care of your apps.",
+        )
     }
 
-    pub fn crash_title(&self) -> &'static str {
-        match self.resolve() {
-            ResolvedLanguage::English => en::CRASH_TITLE,
-            ResolvedLanguage::Turkish => tr::CRASH_TITLE,
-        }
+    pub fn inspiration_info(&self) -> &str {
+        self.gettext("Inspired by knazar from Pardus 1.0")
+    }
+
+    pub fn inspiration_section(&self) -> &str {
+        self.gettext("Inspiration")
+    }
+
+    pub fn crash_title(&self) -> &str {
+        self.gettext("Nazar Değdi!")
     }
 
     pub fn crash_body(&self, app: Option<&str>) -> String {
-        match (self.resolve(), app) {
-            (ResolvedLanguage::Turkish, Some(app_name)) if !app_name.trim().is_empty() => {
-                tr::crash_body_with_app(app_name.trim())
+        match app {
+            Some(app_name) if !app_name.trim().is_empty() => {
+                let template = self.gettext("An evil eye struck {} and it was taken care of.");
+                template.replace("{}", app_name.trim())
             }
-            (ResolvedLanguage::Turkish, _) => tr::CRASH_BODY.to_string(),
-            (ResolvedLanguage::English, Some(app_name)) if !app_name.trim().is_empty() => {
-                en::crash_body_with_app(app_name.trim())
-            }
-            (ResolvedLanguage::English, _) => en::CRASH_BODY.to_string(),
+            _ => self
+                .gettext("An evil eye struck and it was taken care of.")
+                .to_string(),
         }
     }
 }

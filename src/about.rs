@@ -18,16 +18,12 @@ pub fn show_about_window(lang: Language) {
     let dialog = AboutDialog::new();
     dialog.set_program_name("rnazar");
     dialog.set_version(Some("0.1.0"));
-    let comments = format!("{}\n\n{}", lang.about_body(), INSPIRATION_INFO);
+    let comments = format!("{}\n\n{}", lang.about_body(), lang.inspiration_info());
     dialog.set_comments(Some(&comments));
     dialog.set_copyright(Some("Copyright © 2026 Uğur Çetin"));
     dialog.set_authors(&[CREATOR_INFO]);
 
-    let (section_name, credit_name) = match lang.resolve() {
-        crate::i18n::ResolvedLanguage::Turkish => ("Esinlenme", "Pardus 1.0 knazar"),
-        crate::i18n::ResolvedLanguage::English => ("Inspiration", "knazar from Pardus 1.0"),
-    };
-    dialog.add_credit_section(section_name, &[credit_name]);
+    dialog.add_credit_section(lang.inspiration_section(), &[lang.inspiration_info()]);
     dialog.set_license_type(License::MitX11);
     dialog.set_license(Some(LICENSE_TEXT));
     dialog.set_website(Some(WEBSITE_URL));
@@ -58,7 +54,7 @@ pub fn show_about_window(lang: Language) {
         let description = format!(
             "{}\n\n{}\n\nCreator: {}\nLicense: {}\nWebsite: {}\n\n{}",
             lang.about_body(),
-            INSPIRATION_INFO,
+            lang.inspiration_info(),
             CREATOR_INFO,
             LICENSE_NAME,
             WEBSITE_URL,
