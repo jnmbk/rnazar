@@ -22,7 +22,12 @@ pub fn show_about_window(lang: Language) {
     dialog.set_comments(Some(&comments));
     dialog.set_copyright(Some("Copyright © 2026 Uğur Çetin"));
     dialog.set_authors(&[CREATOR_INFO]);
-    dialog.set_artists(&[INSPIRATION_INFO]);
+
+    let (section_name, credit_name) = match lang.resolve() {
+        crate::i18n::ResolvedLanguage::Turkish => ("Esinlenme", "Pardus 1.0 knazar"),
+        crate::i18n::ResolvedLanguage::English => ("Inspiration", "knazar from Pardus 1.0"),
+    };
+    dialog.add_credit_section(section_name, &[credit_name]);
     dialog.set_license_type(License::MitX11);
     dialog.set_license(Some(LICENSE_TEXT));
     dialog.set_website(Some(WEBSITE_URL));
