@@ -2,7 +2,7 @@
 
 > The evil eye ward for your system tray & crash notifier.
 
-A cross-platform system tray application written in Rust for **Linux**, **Windows**, and **macOS**. It lives in your system tray, provides language selection and about controls via a right-click menu, and alerts you with *"nazar değdi ve icabına bakıldı"* whenever an application crashes.
+A cross-platform system tray application written in Rust for **Linux**, **Windows**, and **macOS**. It lives in your system tray, provides language selection and about controls via a right-click menu, and alerts you with *"an evil eye struck and it was taken care of"* whenever an application crashes.
 
 This project is inspired by knazar project that was made for KDE3 back in 2006 by Pardus project.
 

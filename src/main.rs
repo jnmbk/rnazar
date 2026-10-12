@@ -9,7 +9,7 @@ use rnazar::messaging::trigger_crash_notification;
     name = "rnazar",
     version,
     about = "System tray evil eye ward and crash notifier",
-    long_about = "A cross-platform system tray application that wards off bad luck\nand alerts you with 'nazar değdi ve icabına bakıldı' when an application crashes."
+    long_about = "A cross-platform system tray application that wards off bad luck\nand alerts you with 'an evil eye struck and it was taken care of' when an application crashes."
 )]
 struct Cli {
     #[command(subcommand)]
