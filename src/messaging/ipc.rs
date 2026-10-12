@@ -65,8 +65,7 @@ mod unix_ipc {
 mod windows_ipc {
     use super::*;
     use interprocess::local_socket::{
-        traits::ListenerExt as _,
-        GenericNamespaced, ListenerOptions, Stream, ToNsName,
+        traits::ListenerExt as _, GenericNamespaced, ListenerOptions, Stream, ToNsName,
     };
 
     const PIPE_NAME: &str = "@rnazar-messaging.sock";
