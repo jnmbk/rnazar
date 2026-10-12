@@ -75,6 +75,11 @@ jobs:
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin, x86_64-apple-darwin
+
+      - name: Install packaging tools
+        run: brew install create-dmg
 
       - name: Build and Package DMG
         run: ./packaging/macos/build-dmg.sh
