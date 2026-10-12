@@ -1,0 +1,82 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-linux-appimage:
+    name: Build Linux AppImage
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev curl file
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build AppImage
+        run: |
+          # Download appimagetool
+          mkdir -p target/appimage
+          curl -fsSL -o target/appimage/appimagetool "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage"
+          chmod +x target/appimage/appimagetool
+          # Extract because FUSE might not be available in runner
+          cd target/appimage
+          ./appimagetool --appimage-extract
+          export PATH="$PWD/squashfs-root/usr/bin:$PATH"
+          cd ../..
+
+          ./packaging/appimage/build-appimage.sh
+
+      - name: Upload Linux Asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: target/appimage/*.AppImage
+
+  build-windows-setup:
+    name: Build Windows Inno Setup
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build Release Binary
+        run: cargo build --release
+
+      - name: Compile Inno Setup Installer
+        run: |
+          iscc packaging\windows\setup.iss
+
+      - name: Upload Windows Asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: target/windows-installer/*.exe
+
+  build-macos-dmg:
+    name: Build macOS DMG
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build and Package DMG
+        run: ./packaging/macos/build-dmg.sh
+
+      - name: Upload macOS Asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: target/macos/*.dmg
+

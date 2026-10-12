@@ -1,0 +1,14 @@
+[Desktop Entry]
+Name=rnazar
+GenericName=Crash Notifier & Nazar Ward
+GenericName[tr]=Çökme Bildirici & Nazar Boncuğu
+Comment=The evil eye ward for your system tray
+Comment[tr]=Sistem tepsiniz için nazar boncuğu ve çökme bildirici
+Exec=rnazar
+Icon=rnazar
+Terminal=false
+Type=Application
+Categories=Utility;System;
+StartupNotify=false
+X-GNOME-Autostart-enabled=true
+

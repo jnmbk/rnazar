@@ -1,0 +1,4 @@
+[D-BUS Service]
+Name=org.rnazar.Notifier
+Exec=/usr/bin/rnazar
+

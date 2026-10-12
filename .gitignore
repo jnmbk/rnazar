@@ -1,0 +1,27 @@
+# Rust target directory
+/target/
+**/*.rs.bk
+Cargo.lock.dist
+
+# macOS
+.DS_Store
+*.app/
+*.dmg
+
+# Windows
+Thumbs.db
+*.exe
+*.msi
+
+# AppImage build artifacts
+AppDir/
+*.AppImage
+squashfs-root/
+
+# IDE & Editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
