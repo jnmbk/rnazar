@@ -65,7 +65,7 @@ mod unix_ipc {
 mod windows_ipc {
     use super::*;
     use interprocess::local_socket::{
-        traits::{Listener as _, ListenerExt as _, Stream as _},
+        traits::ListenerExt as _,
         GenericNamespaced, ListenerOptions, Stream, ToNsName,
     };
 
