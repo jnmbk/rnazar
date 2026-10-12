@@ -55,3 +55,45 @@ fn test_ipc_roundtrip() {
     std::env::remove_var("RNAZAR_SOCKET_PATH");
     let _ = std::fs::remove_file(test_socket);
 }
+
+#[test]
+fn test_parse_systemd_coredump_json() {
+    use rnazar::messaging::monitor::parse_systemd_coredump_json;
+
+    // Prefers full binary name from COREDUMP_EXE over truncated 15-char COREDUMP_COMM
+    let line = r#"{"COREDUMP_COMM":"gnome-calculato","COREDUMP_EXE":"/usr/bin/gnome-calculator","COREDUMP_UID":"1000"}"#;
+    assert_eq!(
+        parse_systemd_coredump_json(line),
+        Some("gnome-calculator".to_string())
+    );
+
+    // Falls back to COREDUMP_COMM when COREDUMP_EXE is missing
+    let comm_only = r#"{"COREDUMP_COMM":"firefox","COREDUMP_UID":"1000"}"#;
+    assert_eq!(
+        parse_systemd_coredump_json(comm_only),
+        Some("firefox".to_string())
+    );
+
+    // Ignores rnazar itself
+    let self_crash = r#"{"COREDUMP_COMM":"rnazar","COREDUMP_EXE":"/usr/bin/rnazar"}"#;
+    assert_eq!(parse_systemd_coredump_json(self_crash), None);
+}
+
+#[test]
+fn test_parse_crash_filename() {
+    use rnazar::messaging::monitor::parse_crash_filename;
+
+    assert_eq!(
+        parse_crash_filename("Safari-2026-10-12-210000.ips"),
+        Some("Safari".to_string())
+    );
+    assert_eq!(
+        parse_crash_filename("notepad.exe.4812.dmp"),
+        Some("notepad".to_string())
+    );
+    assert_eq!(
+        parse_crash_filename("_usr_bin_vlc.1000.crash"),
+        Some("vlc".to_string())
+    );
+    assert_eq!(parse_crash_filename("rnazar-2026-10-12.ips"), None);
+}

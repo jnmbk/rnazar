@@ -1,5 +1,6 @@
 pub mod dbus;
 pub mod ipc;
+pub mod monitor;
 
 use std::sync::Arc;
 
@@ -14,7 +15,8 @@ where
     #[cfg(target_os = "linux")]
     dbus::run_dbus_server(cb.clone());
 
-    ipc::start_ipc_listener(cb);
+    ipc::start_ipc_listener(cb.clone());
+    monitor::start_crash_monitor(cb);
 }
 
 pub fn trigger_crash_notification(app: Option<&str>) -> Result<(), Box<dyn std::error::Error>> {
