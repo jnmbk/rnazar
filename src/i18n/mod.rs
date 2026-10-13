@@ -170,6 +170,10 @@ impl Language {
         template
     }
 
+    pub fn menu_protection(&self) -> &str {
+        self.gettext("Protection")
+    }
+
     pub fn menu_language(&self) -> &str {
         self.gettext("Language")
     }

@@ -4,6 +4,8 @@ use std::error::Error;
 use tray_icon::{Icon, TrayIcon, TrayIconBuilder};
 
 const ICON_RGBA: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/tray_icon_32x32.rgba"));
+const ICON_GRAY_RGBA: &[u8] =
+    include_bytes!(concat!(env!("OUT_DIR"), "/tray_icon_gray_32x32.rgba"));
 
 pub struct LanguageMenuItem {
     pub language: Language,
@@ -12,6 +14,7 @@ pub struct LanguageMenuItem {
 
 pub struct TrayMenuController {
     pub menu: Menu,
+    pub item_protection: CheckMenuItem,
     pub lang_submenu: Submenu,
     pub item_lang_auto: CheckMenuItem,
     pub lang_items: Vec<LanguageMenuItem>,
@@ -20,8 +23,15 @@ pub struct TrayMenuController {
 }
 
 impl TrayMenuController {
-    pub fn new(current_lang: Language) -> Result<Self, Box<dyn Error>> {
+    pub fn new(current_lang: Language, protection_enabled: bool) -> Result<Self, Box<dyn Error>> {
         let menu = Menu::new();
+
+        let item_protection = CheckMenuItem::new(
+            current_lang.menu_protection(),
+            true,
+            protection_enabled,
+            None,
+        );
 
         let item_lang_auto = CheckMenuItem::new(
             current_lang.menu_lang_auto(),
@@ -45,16 +55,20 @@ impl TrayMenuController {
         }
 
         let item_about = MenuItem::new(current_lang.menu_about(), true, None);
-        let item_sep = PredefinedMenuItem::separator();
+        let item_sep1 = PredefinedMenuItem::separator();
+        let item_sep2 = PredefinedMenuItem::separator();
         let item_exit = MenuItem::new(current_lang.menu_exit(), true, None);
 
+        menu.append(&item_protection)?;
+        menu.append(&item_sep1)?;
         menu.append(&lang_submenu)?;
         menu.append(&item_about)?;
-        menu.append(&item_sep)?;
+        menu.append(&item_sep2)?;
         menu.append(&item_exit)?;
 
         Ok(Self {
             menu,
+            item_protection,
             lang_submenu,
             item_lang_auto,
             lang_items,
@@ -64,6 +78,7 @@ impl TrayMenuController {
     }
 
     pub fn update_language(&self, lang: &Language) {
+        self.item_protection.set_text(lang.menu_protection());
         self.lang_submenu.set_text(lang.menu_language());
         self.item_lang_auto.set_text(lang.menu_lang_auto());
         self.item_lang_auto.set_checked(lang == &Language::Auto);
@@ -75,15 +90,24 @@ impl TrayMenuController {
         self.item_about.set_text(lang.menu_about());
         self.item_exit.set_text(lang.menu_exit());
     }
+
+    pub fn update_protection(&self, enabled: bool) {
+        self.item_protection.set_checked(enabled);
+    }
 }
 
-pub fn load_tray_icon() -> Result<Icon, Box<dyn Error>> {
-    let icon = Icon::from_rgba(ICON_RGBA.to_vec(), 32, 32)?;
+pub fn load_tray_icon(protection_enabled: bool) -> Result<Icon, Box<dyn Error>> {
+    let raw = if protection_enabled {
+        ICON_RGBA
+    } else {
+        ICON_GRAY_RGBA
+    };
+    let icon = Icon::from_rgba(raw.to_vec(), 32, 32)?;
     Ok(icon)
 }
 
-pub fn build_tray_icon(menu: Menu) -> Result<TrayIcon, Box<dyn Error>> {
-    let icon = load_tray_icon()?;
+pub fn build_tray_icon(menu: Menu, protection_enabled: bool) -> Result<TrayIcon, Box<dyn Error>> {
+    let icon = load_tray_icon(protection_enabled)?;
     let tray = TrayIconBuilder::new()
         .with_menu(Box::new(menu))
         .with_tooltip("rnazar")

@@ -37,6 +37,7 @@ fn test_english_crash_body() {
 #[test]
 fn test_menu_strings_non_empty() {
     for lang in [Language::English, Language::Turkish, Language::Auto] {
+        assert!(!lang.menu_protection().is_empty());
         assert!(!lang.menu_language().is_empty());
         assert!(!lang.menu_about().is_empty());
         assert!(!lang.menu_exit().is_empty());
@@ -47,6 +48,12 @@ fn test_menu_strings_non_empty() {
         assert!(!lang.exit_confirm_title().is_empty());
         assert!(!lang.exit_confirm_message().is_empty());
     }
+}
+
+#[test]
+fn test_menu_protection_translations() {
+    assert_eq!(Language::English.menu_protection(), "Protection");
+    assert_eq!(Language::Turkish.menu_protection(), "Koruma");
 }
 
 #[test]

@@ -2,7 +2,7 @@ use crate::config::AppConfig;
 use crate::i18n::Language;
 use crate::messaging::start_desktop_messaging;
 use crate::notify::show_crash_notification;
-use crate::tray::{build_tray_icon, TrayMenuController};
+use crate::tray::{build_tray_icon, load_tray_icon, TrayMenuController};
 use std::error::Error;
 use std::sync::{Arc, RwLock};
 use tao::event::{Event, StartCause};
@@ -15,11 +15,11 @@ pub enum UserAppEvent {
 
 pub fn run_tray_application() -> Result<(), Box<dyn Error>> {
     let config = Arc::new(RwLock::new(AppConfig::load()));
-    let initial_lang = config
+    let (initial_lang, initial_protection) = config
         .read()
-        .map(|c| c.language.clone())
-        .unwrap_or(Language::Auto);
-    let menu_controller = TrayMenuController::new(initial_lang)?;
+        .map(|c| (c.language.clone(), c.protection))
+        .unwrap_or((Language::Auto, true));
+    let menu_controller = TrayMenuController::new(initial_lang, initial_protection)?;
 
     // Build event loop with custom user events
     let event_loop = EventLoopBuilder::<UserAppEvent>::with_user_event().build();
@@ -34,11 +34,15 @@ pub fn run_tray_application() -> Result<(), Box<dyn Error>> {
     // Start desktop messaging listeners (D-Bus on Linux, IPC on all platforms)
     // Run notification directly from listener thread so headless tray event loop isn't blocked
     let msg_config = Arc::clone(&config);
-    start_desktop_messaging(move |app_name| {
-        let lang = msg_config
+    let monitor_controller = start_desktop_messaging(initial_protection, move |app_name| {
+        let (lang, protection) = msg_config
             .read()
-            .map(|c| c.language.clone())
-            .unwrap_or(Language::Auto);
+            .map(|c| (c.language.clone(), c.protection))
+            .unwrap_or((Language::Auto, true));
+        if !protection {
+            log::debug!("Protection is disabled: ignoring crash notification");
+            return;
+        }
         log::debug!(
             "Crash notification triggered for: {:?}",
             app_name.as_deref().unwrap_or("<unspecified>")
@@ -47,7 +51,7 @@ pub fn run_tray_application() -> Result<(), Box<dyn Error>> {
     });
 
     // Build tray icon (keep instance alive for event loop lifetime)
-    let _tray_icon = build_tray_icon(menu_controller.menu.clone())?;
+    let tray_icon = build_tray_icon(menu_controller.menu.clone(), initial_protection)?;
 
     log::debug!("rnazar system tray active. Running event loop...");
 
@@ -60,7 +64,24 @@ pub fn run_tray_application() -> Result<(), Box<dyn Error>> {
             }
             Event::UserEvent(UserAppEvent::MenuEvent(menu_event)) => {
                 let id = menu_event.id();
-                if id == menu_controller.item_lang_auto.id() {
+                if id == menu_controller.item_protection.id() {
+                    let new_state = !config.read().map(|c| c.protection).unwrap_or(true);
+                    if let Ok(mut cfg) = config.write() {
+                        cfg.protection = new_state;
+                        cfg.save();
+                    }
+                    menu_controller.update_protection(new_state);
+                    if let Ok(icon) = load_tray_icon(new_state) {
+                        let _ = tray_icon.set_icon(Some(icon));
+                    }
+                    if new_state {
+                        log::debug!("Protection enabled: starting crash log monitor");
+                        monitor_controller.start();
+                    } else {
+                        log::debug!("Protection disabled: stopping crash log monitor");
+                        monitor_controller.stop();
+                    }
+                } else if id == menu_controller.item_lang_auto.id() {
                     if let Ok(mut cfg) = config.write() {
                         cfg.language = Language::Auto;
                         cfg.save();

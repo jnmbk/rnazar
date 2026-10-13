@@ -19,9 +19,16 @@ fn compile_tray_icon() {
     let icon_bytes =
         std::fs::read("assets/icons/png/32x32.png").expect("Failed to read 32x32 tray icon");
     let img = image::load_from_memory(&icon_bytes).expect("Failed to decode tray icon PNG");
-    let rgba = img.into_rgba8();
+    let rgba = img.to_rgba8();
     std::fs::write(out_dir.join("tray_icon_32x32.rgba"), rgba.as_raw())
         .expect("Failed to write tray icon raw bytes");
+
+    let gray_rgba = img.grayscale().into_rgba8();
+    std::fs::write(
+        out_dir.join("tray_icon_gray_32x32.rgba"),
+        gray_rgba.as_raw(),
+    )
+    .expect("Failed to write grayscale tray icon raw bytes");
 }
 
 fn get_app_version() -> String {

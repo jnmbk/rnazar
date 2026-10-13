@@ -3,9 +3,24 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+fn default_true() -> bool {
+    true
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppConfig {
     pub language: Language,
+    #[serde(default = "default_true")]
+    pub protection: bool,
+}
+
+impl Default for AppConfig {
+    fn default() -> Self {
+        Self {
+            language: Language::default(),
+            protection: true,
+        }
+    }
 }
 
 impl AppConfig {

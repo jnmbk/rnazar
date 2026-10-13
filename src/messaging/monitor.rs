@@ -547,198 +547,412 @@ fn make_dedup_callback(cb: CrashCallback) -> CrashCallback {
     })
 }
 
-pub fn start_crash_monitor(cb: CrashCallback) {
-    let dedup_cb = make_dedup_callback(cb);
+#[derive(Clone)]
+pub struct CrashMonitorController {
+    cb: CrashCallback,
+    active: Arc<Mutex<Option<ActiveMonitors>>>,
+}
 
-    #[cfg(target_os = "linux")]
-    start_linux_crash_monitor(dedup_cb);
-
-    #[cfg(target_os = "macos")]
-    {
-        start_macos_log_crash_monitor(dedup_cb.clone());
-        start_dir_crash_monitor(dedup_cb);
+impl CrashMonitorController {
+    pub fn new(cb: CrashCallback) -> Self {
+        Self {
+            cb,
+            active: Arc::new(Mutex::new(None)),
+        }
     }
 
-    #[cfg(target_os = "windows")]
-    {
-        start_windows_event_crash_monitor(dedup_cb.clone());
-        start_dir_crash_monitor(dedup_cb);
+    pub fn start(&self) {
+        let mut guard = match self.active.lock() {
+            Ok(g) => g,
+            Err(p) => p.into_inner(),
+        };
+        if guard.is_some() {
+            return;
+        }
+        let dedup_cb = make_dedup_callback(self.cb.clone());
+        *guard = Some(ActiveMonitors::start(dedup_cb));
+        log::debug!("Crash monitor started.");
     }
+
+    pub fn stop(&self) {
+        let mut guard = match self.active.lock() {
+            Ok(g) => g,
+            Err(p) => p.into_inner(),
+        };
+        if let Some(active) = guard.take() {
+            active.stop();
+            log::debug!("Crash monitor stopped.");
+        }
+    }
+
+    pub fn is_running(&self) -> bool {
+        match self.active.lock() {
+            Ok(g) => g.is_some(),
+            Err(p) => p.into_inner().is_some(),
+        }
+    }
+}
+
+pub fn start_crash_monitor(cb: CrashCallback) -> CrashMonitorController {
+    let controller = CrashMonitorController::new(cb);
+    controller.start();
+    controller
 }
 
 #[cfg(target_os = "linux")]
-fn start_linux_crash_monitor(cb: CrashCallback) {
-    use std::io::{BufRead, BufReader};
-    use std::os::unix::process::CommandExt;
-    use std::process::{Command, Stdio};
+struct ActiveMonitors {
+    running: Arc<std::sync::atomic::AtomicBool>,
+    child_pid: Arc<Mutex<Option<u32>>>,
+    thread_handle: Option<std::thread::JoinHandle<()>>,
+}
 
-    let _ = std::thread::Builder::new()
-        .name("rnazar-crash-mon".into())
-        .spawn(move || {
-            let mut cmd = Command::new("journalctl");
-            cmd.args([
-                "--follow",
-                "--lines=0",
-                "--output=json",
-                "--output-fields=COREDUMP_EXE,COREDUMP_COMM,COREDUMP_UID",
-                "MESSAGE_ID=fc2e22bc6ee647b6b90729ab34a250b1",
-            ])
-            .stdout(Stdio::piped())
-            .stderr(Stdio::null());
+#[cfg(target_os = "linux")]
+impl ActiveMonitors {
+    fn start(cb: CrashCallback) -> Self {
+        use std::io::{BufRead, BufReader};
+        use std::os::unix::process::CommandExt;
+        use std::process::{Command, Stdio};
+        use std::sync::atomic::{AtomicBool, Ordering};
 
-            unsafe {
-                cmd.pre_exec(|| {
-                    // Ensure journalctl child terminates automatically if rnazar exits
-                    libc::prctl(libc::PR_SET_PDEATHSIG, libc::SIGTERM);
-                    Ok(())
-                });
-            }
+        let running = Arc::new(AtomicBool::new(true));
+        let child_pid = Arc::new(Mutex::new(None));
 
-            match cmd.spawn() {
-                Ok(mut child) => {
-                    log::debug!("Started systemd-coredump crash monitor via journalctl.");
-                    if let Some(stdout) = child.stdout.take() {
-                        let reader = BufReader::new(stdout);
-                        for line in reader.lines().map_while(Result::ok) {
-                            if let Some(app_name) = parse_systemd_coredump_json(&line) {
-                                log::debug!("Detected Linux application crash: {}", app_name);
-                                cb(Some(app_name));
+        let thread_running = Arc::clone(&running);
+        let thread_child_pid = Arc::clone(&child_pid);
+
+        let thread_handle = std::thread::Builder::new()
+            .name("rnazar-crash-mon".into())
+            .spawn(move || {
+                let mut cmd = Command::new("journalctl");
+                cmd.args([
+                    "--follow",
+                    "--lines=0",
+                    "--output=json",
+                    "--output-fields=COREDUMP_EXE,COREDUMP_COMM,COREDUMP_UID",
+                    "MESSAGE_ID=fc2e22bc6ee647b6b90729ab34a250b1",
+                ])
+                .stdout(Stdio::piped())
+                .stderr(Stdio::null());
+
+                unsafe {
+                    cmd.pre_exec(|| {
+                        // Ensure journalctl child terminates automatically if rnazar exits
+                        libc::prctl(libc::PR_SET_PDEATHSIG, libc::SIGTERM);
+                        Ok(())
+                    });
+                }
+
+                if !thread_running.load(Ordering::SeqCst) {
+                    return;
+                }
+
+                match cmd.spawn() {
+                    Ok(mut child) => {
+                        let pid = child.id();
+                        if let Ok(mut guard) = thread_child_pid.lock() {
+                            *guard = Some(pid);
+                        }
+                        if !thread_running.load(Ordering::SeqCst) {
+                            let _ = child.kill();
+                            let _ = child.wait();
+                            return;
+                        }
+
+                        log::debug!("Started systemd-coredump crash monitor via journalctl.");
+                        if let Some(stdout) = child.stdout.take() {
+                            let reader = BufReader::new(stdout);
+                            for line in reader.lines().map_while(Result::ok) {
+                                if !thread_running.load(Ordering::SeqCst) {
+                                    break;
+                                }
+                                if let Some(app_name) = parse_systemd_coredump_json(&line) {
+                                    log::debug!("Detected Linux application crash: {}", app_name);
+                                    cb(Some(app_name));
+                                }
                             }
                         }
+                        let _ = child.kill();
+                        let _ = child.wait();
+                        if let Ok(mut guard) = thread_child_pid.lock() {
+                            *guard = None;
+                        }
                     }
-                    let _ = child.wait();
+                    Err(e) => {
+                        log::warn!("Failed to spawn journalctl for crash monitoring: {}", e);
+                    }
                 }
-                Err(e) => {
-                    log::warn!("Failed to spawn journalctl for crash monitoring: {}", e);
+            })
+            .ok();
+
+        Self {
+            running,
+            child_pid,
+            thread_handle,
+        }
+    }
+
+    fn stop(mut self) {
+        use std::sync::atomic::Ordering;
+
+        self.running.store(false, Ordering::SeqCst);
+        if let Ok(guard) = self.child_pid.lock() {
+            if let Some(pid) = *guard {
+                unsafe {
+                    libc::kill(pid as libc::pid_t, libc::SIGTERM);
                 }
             }
-        });
+        }
+        if let Some(handle) = self.thread_handle.take() {
+            let _ = handle.join();
+        }
+    }
 }
 
 #[cfg(target_os = "macos")]
-fn start_macos_log_crash_monitor(cb: CrashCallback) {
-    use std::io::{BufRead, BufReader};
-    use std::process::{Command, Stdio};
+struct ActiveMonitors {
+    running: Arc<std::sync::atomic::AtomicBool>,
+    log_child_pid: Arc<Mutex<Option<u32>>>,
+    log_thread: Option<std::thread::JoinHandle<()>>,
+    dir_stop_tx: Option<std::sync::mpsc::SyncSender<()>>,
+    dir_thread: Option<std::thread::JoinHandle<()>>,
+}
 
-    let _ = std::thread::Builder::new()
-        .name("rnazar-macos-log".into())
-        .spawn(move || {
-            let mut cmd = Command::new("/usr/bin/log");
-            cmd.args([
-                "stream",
-                "--style",
-                "ndjson",
-                "--predicate",
-                r#"process == "ReportCrash""#,
-            ])
-            .stdout(Stdio::piped())
-            .stderr(Stdio::null());
+#[cfg(target_os = "macos")]
+impl ActiveMonitors {
+    fn start(cb: CrashCallback) -> Self {
+        use std::io::{BufRead, BufReader};
+        use std::process::{Command, Stdio};
+        use std::sync::atomic::{AtomicBool, Ordering};
 
-            let spawn_res = cmd.spawn().or_else(|_| {
-                Command::new("log")
-                    .args([
-                        "stream",
-                        "--style",
-                        "ndjson",
-                        "--predicate",
-                        r#"process == "ReportCrash""#,
-                    ])
-                    .stdout(Stdio::piped())
-                    .stderr(Stdio::null())
-                    .spawn()
-            });
+        let running = Arc::new(AtomicBool::new(true));
+        let log_child_pid = Arc::new(Mutex::new(None));
 
-            match spawn_res {
-                Ok(mut child) => {
-                    log::debug!("Started macOS ReportCrash unified log stream monitor.");
-                    if let Some(stdout) = child.stdout.take() {
-                        let reader = BufReader::new(stdout);
-                        for line in reader.lines().map_while(Result::ok) {
-                            if let Some(app_name) = parse_macos_crash_log(&line) {
-                                log::debug!(
-                                    "Detected macOS application crash via unified log: {}",
-                                    app_name
-                                );
-                                cb(Some(app_name));
+        let thread_running = Arc::clone(&running);
+        let thread_log_child_pid = Arc::clone(&log_child_pid);
+        let log_cb = cb.clone();
+
+        let log_thread = std::thread::Builder::new()
+            .name("rnazar-macos-log".into())
+            .spawn(move || {
+                let mut cmd = Command::new("/usr/bin/log");
+                cmd.args([
+                    "stream",
+                    "--style",
+                    "ndjson",
+                    "--predicate",
+                    r#"process == "ReportCrash""#,
+                ])
+                .stdout(Stdio::piped())
+                .stderr(Stdio::null());
+
+                let spawn_res = cmd.spawn().or_else(|_| {
+                    Command::new("log")
+                        .args([
+                            "stream",
+                            "--style",
+                            "ndjson",
+                            "--predicate",
+                            r#"process == "ReportCrash""#,
+                        ])
+                        .stdout(Stdio::piped())
+                        .stderr(Stdio::null())
+                        .spawn()
+                });
+
+                if !thread_running.load(Ordering::SeqCst) {
+                    return;
+                }
+
+                match spawn_res {
+                    Ok(mut child) => {
+                        let pid = child.id();
+                        if let Ok(mut guard) = thread_log_child_pid.lock() {
+                            *guard = Some(pid);
+                        }
+                        if !thread_running.load(Ordering::SeqCst) {
+                            let _ = child.kill();
+                            let _ = child.wait();
+                            return;
+                        }
+
+                        log::debug!("Started macOS ReportCrash unified log stream monitor.");
+                        if let Some(stdout) = child.stdout.take() {
+                            let reader = BufReader::new(stdout);
+                            for line in reader.lines().map_while(Result::ok) {
+                                if !thread_running.load(Ordering::SeqCst) {
+                                    break;
+                                }
+                                if let Some(app_name) = parse_macos_crash_log(&line) {
+                                    log::debug!(
+                                        "Detected macOS application crash via unified log: {}",
+                                        app_name
+                                    );
+                                    log_cb(Some(app_name));
+                                }
+                            }
+                        }
+                        let _ = child.kill();
+                        let _ = child.wait();
+                        if let Ok(mut guard) = thread_log_child_pid.lock() {
+                            *guard = None;
+                        }
+                    }
+                    Err(e) => {
+                        log::warn!(
+                            "Failed to spawn macOS `log stream` for crash monitoring: {}",
+                            e
+                        );
+                    }
+                }
+            })
+            .ok();
+
+        let watch_dirs = default_crash_watch_dirs();
+        let (dir_stop_tx, dir_thread) = if watch_dirs.is_empty() {
+            (None, None)
+        } else {
+            let (tx, rx) = std::sync::mpsc::sync_channel::<()>(0);
+            let dir_running = Arc::clone(&running);
+            let dir_cb = cb;
+            let handle = std::thread::Builder::new()
+                .name("rnazar-crash-dir".into())
+                .spawn(move || {
+                    let mut scanner = CrashDirScanner::new(watch_dirs);
+                    loop {
+                        match rx.recv_timeout(Duration::from_secs(2)) {
+                            Ok(_) | Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => break,
+                            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+                                if !dir_running.load(Ordering::SeqCst) {
+                                    break;
+                                }
+                                for app_name in scanner.poll_new_crashes() {
+                                    if !dir_running.load(Ordering::SeqCst) {
+                                        break;
+                                    }
+                                    log::debug!(
+                                        "Detected application crash from diagnostic directory: {}",
+                                        app_name
+                                    );
+                                    dir_cb(Some(app_name));
+                                }
                             }
                         }
                     }
-                    let _ = child.wait();
-                }
-                Err(e) => {
-                    log::warn!(
-                        "Failed to spawn macOS `log stream` for crash monitoring: {}",
-                        e
-                    );
+                })
+                .ok();
+            (Some(tx), handle)
+        };
+
+        Self {
+            running,
+            log_child_pid,
+            log_thread,
+            dir_stop_tx,
+            dir_thread,
+        }
+    }
+
+    fn stop(mut self) {
+        use std::sync::atomic::Ordering;
+
+        self.running.store(false, Ordering::SeqCst);
+        if let Ok(guard) = self.log_child_pid.lock() {
+            if let Some(pid) = *guard {
+                unsafe {
+                    libc::kill(pid as libc::pid_t, libc::SIGTERM);
                 }
             }
-        });
+        }
+        if let Some(tx) = self.dir_stop_tx.take() {
+            let _ = tx.send(());
+        }
+        if let Some(handle) = self.log_thread.take() {
+            let _ = handle.join();
+        }
+        if let Some(handle) = self.dir_thread.take() {
+            let _ = handle.join();
+        }
+    }
 }
 
 #[cfg(target_os = "windows")]
-fn start_windows_event_crash_monitor(cb: CrashCallback) {
-    use std::ffi::c_void;
-    use std::ptr::null_mut;
+struct ActiveMonitors {
+    running: Arc<std::sync::atomic::AtomicBool>,
+    evt_handle: Arc<Mutex<Option<usize>>>,
+    evt_stop_tx: Option<std::sync::mpsc::SyncSender<()>>,
+    evt_thread: Option<std::thread::JoinHandle<()>>,
+    dir_stop_tx: Option<std::sync::mpsc::SyncSender<()>>,
+    dir_thread: Option<std::thread::JoinHandle<()>>,
+}
 
-    type EvtHandle = *mut c_void;
-    type EvtSubscribeCallback =
-        unsafe extern "system" fn(action: u32, user_context: *mut c_void, event: EvtHandle) -> u32;
+#[cfg(target_os = "windows")]
+impl ActiveMonitors {
+    fn start(cb: CrashCallback) -> Self {
+        use std::ffi::c_void;
+        use std::ptr::null_mut;
+        use std::sync::atomic::{AtomicBool, Ordering};
 
-    const EVT_SUBSCRIBE_TO_FUTURE_EVENTS: u32 = 1;
-    const EVT_SUBSCRIBE_ACTION_DELIVER: u32 = 1;
-    const EVT_RENDER_EVENT_XML: u32 = 1;
+        type EvtHandle = *mut c_void;
+        type EvtSubscribeCallback = unsafe extern "system" fn(
+            action: u32,
+            user_context: *mut c_void,
+            event: EvtHandle,
+        ) -> u32;
 
-    #[link(name = "wevtapi")]
-    extern "system" {
-        fn EvtSubscribe(
-            session: EvtHandle,
-            signal_event: *mut c_void,
-            channel_path: *const u16,
-            query: *const u16,
-            bookmark: EvtHandle,
-            context: *mut c_void,
-            callback: EvtSubscribeCallback,
-            flags: u32,
-        ) -> EvtHandle;
+        const EVT_SUBSCRIBE_TO_FUTURE_EVENTS: u32 = 1;
+        const EVT_SUBSCRIBE_ACTION_DELIVER: u32 = 1;
+        const EVT_RENDER_EVENT_XML: u32 = 1;
 
-        fn EvtRender(
-            context: EvtHandle,
-            fragment: EvtHandle,
-            flags: u32,
-            buffer_size: u32,
-            buffer: *mut c_void,
-            buffer_used: *mut u32,
-            property_count: *mut u32,
-        ) -> i32;
-    }
+        #[link(name = "wevtapi")]
+        extern "system" {
+            fn EvtSubscribe(
+                session: EvtHandle,
+                signal_event: *mut c_void,
+                channel_path: *const u16,
+                query: *const u16,
+                bookmark: EvtHandle,
+                context: *mut c_void,
+                callback: EvtSubscribeCallback,
+                flags: u32,
+            ) -> EvtHandle;
 
-    unsafe extern "system" fn event_callback(
-        action: u32,
-        user_context: *mut c_void,
-        event: EvtHandle,
-    ) -> u32 {
-        if action != EVT_SUBSCRIBE_ACTION_DELIVER || user_context.is_null() || event.is_null() {
-            return 0;
+            fn EvtRender(
+                context: EvtHandle,
+                fragment: EvtHandle,
+                flags: u32,
+                buffer_size: u32,
+                buffer: *mut c_void,
+                buffer_used: *mut u32,
+                property_count: *mut u32,
+            ) -> i32;
+
+            fn EvtClose(handle: EvtHandle) -> i32;
         }
 
-        let mut buffer_used: u32 = 0;
-        let mut property_count: u32 = 0;
-        let mut buf: Vec<u16> = vec![0u16; 4096];
+        struct WinEvtContext {
+            cb: CrashCallback,
+            running: Arc<AtomicBool>,
+        }
 
-        let ok = EvtRender(
-            null_mut(),
-            event,
-            EVT_RENDER_EVENT_XML,
-            (buf.len() * std::mem::size_of::<u16>()) as u32,
-            buf.as_mut_ptr().cast::<c_void>(),
-            &mut buffer_used,
-            &mut property_count,
-        );
+        unsafe extern "system" fn event_callback(
+            action: u32,
+            user_context: *mut c_void,
+            event: EvtHandle,
+        ) -> u32 {
+            if action != EVT_SUBSCRIBE_ACTION_DELIVER || user_context.is_null() || event.is_null() {
+                return 0;
+            }
 
-        if ok == 0 && buffer_used > 0 && buffer_used <= 65536 {
-            let needed_u16 = (buffer_used as usize).div_ceil(2);
-            buf.resize(needed_u16, 0);
-            let retry_ok = EvtRender(
+            let ctx = &*user_context.cast::<WinEvtContext>();
+            if !ctx.running.load(Ordering::SeqCst) {
+                return 0;
+            }
+
+            let mut buffer_used: u32 = 0;
+            let mut property_count: u32 = 0;
+            let mut buf: Vec<u16> = vec![0u16; 4096];
+
+            let ok = EvtRender(
                 null_mut(),
                 event,
                 EVT_RENDER_EVENT_XML,
@@ -747,65 +961,189 @@ fn start_windows_event_crash_monitor(cb: CrashCallback) {
                 &mut buffer_used,
                 &mut property_count,
             );
-            if retry_ok == 0 {
+
+            if ok == 0 && buffer_used > 0 && buffer_used <= 65536 {
+                let needed_u16 = (buffer_used as usize).div_ceil(2);
+                buf.resize(needed_u16, 0);
+                let retry_ok = EvtRender(
+                    null_mut(),
+                    event,
+                    EVT_RENDER_EVENT_XML,
+                    (buf.len() * std::mem::size_of::<u16>()) as u32,
+                    buf.as_mut_ptr().cast::<c_void>(),
+                    &mut buffer_used,
+                    &mut property_count,
+                );
+                if retry_ok == 0 {
+                    return 0;
+                }
+            } else if ok == 0 {
                 return 0;
             }
-        } else if ok == 0 {
-            return 0;
+
+            let u16_len = (buffer_used as usize / 2).min(buf.len());
+            let slice = &buf[..u16_len];
+            let trimmed_slice = slice.strip_suffix(&[0]).unwrap_or(slice);
+            let xml = String::from_utf16_lossy(trimmed_slice);
+
+            if let Some(app_name) = parse_windows_event_xml(&xml) {
+                if ctx.running.load(Ordering::SeqCst) {
+                    log::debug!(
+                        "Detected Windows application crash via Event Log (EventID 1000): {}",
+                        app_name
+                    );
+                    (ctx.cb)(Some(app_name));
+                }
+            }
+
+            0
         }
 
-        let u16_len = (buffer_used as usize / 2).min(buf.len());
-        let slice = &buf[..u16_len];
-        let trimmed_slice = slice.strip_suffix(&[0]).unwrap_or(slice);
-        let xml = String::from_utf16_lossy(trimmed_slice);
+        let running = Arc::new(AtomicBool::new(true));
+        let evt_handle = Arc::new(Mutex::new(None));
 
-        if let Some(app_name) = parse_windows_event_xml(&xml) {
-            log::debug!(
-                "Detected Windows application crash via Event Log (EventID 1000): {}",
-                app_name
-            );
-            let cb = &*user_context.cast::<CrashCallback>();
-            cb(Some(app_name));
+        let (evt_stop_tx, evt_stop_rx) = std::sync::mpsc::sync_channel::<()>(0);
+        let evt_running = Arc::clone(&running);
+        let evt_handle_clone = Arc::clone(&evt_handle);
+        let evt_cb = cb.clone();
+
+        let evt_thread = std::thread::Builder::new()
+            .name("rnazar-win-evt".into())
+            .spawn(move || {
+                let channel: Vec<u16> = "Application\0".encode_utf16().collect();
+                let query: Vec<u16> =
+                    "*[System[Provider[@Name='Application Error'] and (EventID=1000)]]\0"
+                        .encode_utf16()
+                        .collect();
+
+                let ctx_ptr = Box::into_raw(Box::new(WinEvtContext {
+                    cb: evt_cb,
+                    running: evt_running,
+                }))
+                .cast::<c_void>();
+
+                let handle = unsafe {
+                    EvtSubscribe(
+                        null_mut(),
+                        null_mut(),
+                        channel.as_ptr(),
+                        query.as_ptr(),
+                        null_mut(),
+                        ctx_ptr,
+                        event_callback,
+                        EVT_SUBSCRIBE_TO_FUTURE_EVENTS,
+                    )
+                };
+
+                if handle.is_null() {
+                    log::warn!(
+                        "Failed to subscribe to Windows Application Event Log (EventID 1000)."
+                    );
+                    unsafe {
+                        drop(Box::from_raw(ctx_ptr.cast::<WinEvtContext>()));
+                    }
+                    return;
+                }
+
+                if let Ok(mut guard) = evt_handle_clone.lock() {
+                    *guard = Some(handle as usize);
+                }
+
+                log::debug!("Subscribed to Windows Application Event Log (EventID 1000).");
+                let _ = evt_stop_rx.recv();
+
+                unsafe {
+                    EvtClose(handle);
+                    drop(Box::from_raw(ctx_ptr.cast::<WinEvtContext>()));
+                }
+                if let Ok(mut guard) = evt_handle_clone.lock() {
+                    *guard = None;
+                }
+            })
+            .ok();
+
+        let watch_dirs = default_crash_watch_dirs();
+        let (dir_stop_tx, dir_thread) = if watch_dirs.is_empty() {
+            (None, None)
+        } else {
+            let (tx, rx) = std::sync::mpsc::sync_channel::<()>(0);
+            let dir_running = Arc::clone(&running);
+            let dir_cb = cb;
+            let handle = std::thread::Builder::new()
+                .name("rnazar-crash-dir".into())
+                .spawn(move || {
+                    let mut scanner = CrashDirScanner::new(watch_dirs);
+                    loop {
+                        match rx.recv_timeout(Duration::from_secs(2)) {
+                            Ok(_) | Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => break,
+                            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+                                if !dir_running.load(Ordering::SeqCst) {
+                                    break;
+                                }
+                                for app_name in scanner.poll_new_crashes() {
+                                    if !dir_running.load(Ordering::SeqCst) {
+                                        break;
+                                    }
+                                    log::debug!(
+                                        "Detected application crash from diagnostic directory: {}",
+                                        app_name
+                                    );
+                                    dir_cb(Some(app_name));
+                                }
+                            }
+                        }
+                    }
+                })
+                .ok();
+            (Some(tx), handle)
+        };
+
+        Self {
+            running,
+            evt_handle,
+            evt_stop_tx: Some(evt_stop_tx),
+            evt_thread,
+            dir_stop_tx,
+            dir_thread,
         }
-
-        0
     }
 
-    let _ = std::thread::Builder::new()
-        .name("rnazar-win-evt".into())
-        .spawn(move || {
-            let channel: Vec<u16> = "Application\0".encode_utf16().collect();
-            let query: Vec<u16> =
-                "*[System[Provider[@Name='Application Error'] and (EventID=1000)]]\0"
-                    .encode_utf16()
-                    .collect();
+    fn stop(mut self) {
+        use std::sync::atomic::Ordering;
 
-            let ctx_ptr = Box::into_raw(Box::new(cb)).cast::<c_void>();
+        self.running.store(false, Ordering::SeqCst);
+        if let Some(tx) = self.evt_stop_tx.take() {
+            let _ = tx.send(());
+        }
+        if let Some(tx) = self.dir_stop_tx.take() {
+            let _ = tx.send(());
+        }
+        if let Some(handle) = self.evt_thread.take() {
+            let _ = handle.join();
+        }
+        if let Some(handle) = self.dir_thread.take() {
+            let _ = handle.join();
+        }
+    }
+}
 
-            let handle = unsafe {
-                EvtSubscribe(
-                    null_mut(),
-                    null_mut(),
-                    channel.as_ptr(),
-                    query.as_ptr(),
-                    null_mut(),
-                    ctx_ptr,
-                    event_callback,
-                    EVT_SUBSCRIBE_TO_FUTURE_EVENTS,
-                )
-            };
+#[cfg(all(
+    not(target_os = "linux"),
+    not(target_os = "macos"),
+    not(target_os = "windows")
+))]
+struct ActiveMonitors;
 
-            if handle.is_null() {
-                log::warn!("Failed to subscribe to Windows Application Event Log (EventID 1000).");
-                return;
-            }
-
-            log::debug!("Subscribed to Windows Application Event Log (EventID 1000).");
-            // Keep subscription handle and callback context alive for the application lifetime
-            loop {
-                std::thread::park();
-            }
-        });
+#[cfg(all(
+    not(target_os = "linux"),
+    not(target_os = "macos"),
+    not(target_os = "windows")
+))]
+impl ActiveMonitors {
+    fn start(_cb: CrashCallback) -> Self {
+        ActiveMonitors
+    }
+    fn stop(self) {}
 }
 
 #[cfg(not(target_os = "linux"))]
@@ -835,28 +1173,4 @@ fn default_crash_watch_dirs() -> Vec<PathBuf> {
     }
 
     dirs
-}
-
-#[cfg(not(target_os = "linux"))]
-fn start_dir_crash_monitor(cb: CrashCallback) {
-    let watch_dirs = default_crash_watch_dirs();
-    if watch_dirs.is_empty() {
-        return;
-    }
-
-    let _ = std::thread::Builder::new()
-        .name("rnazar-crash-dir".into())
-        .spawn(move || {
-            let mut scanner = CrashDirScanner::new(watch_dirs);
-            loop {
-                std::thread::sleep(Duration::from_secs(2));
-                for app_name in scanner.poll_new_crashes() {
-                    log::debug!(
-                        "Detected application crash from diagnostic directory: {}",
-                        app_name
-                    );
-                    cb(Some(app_name));
-                }
-            }
-        });
 }

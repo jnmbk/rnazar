@@ -23,10 +23,66 @@ fn test_ipc_crash_message_serialization() {
 fn test_app_config_serialization() {
     let config = AppConfig {
         language: Language::Turkish,
+        protection: true,
     };
     let json = serde_json::to_string(&config).expect("serialization failed");
     let deserialized: AppConfig = serde_json::from_str(&json).expect("deserialization failed");
     assert_eq!(deserialized.language, Language::Turkish);
+    assert!(deserialized.protection);
+
+    // Backward compatibility: default protection to true when omitted
+    let json_legacy = r#"{"language": "turkish"}"#;
+    let legacy_cfg: AppConfig = serde_json::from_str(json_legacy).expect("parse legacy config");
+    assert_eq!(legacy_cfg.language, Language::Turkish);
+    assert!(legacy_cfg.protection);
+
+    // Explicitly disabled protection
+    let json_disabled = r#"{"language": "english", "protection": false}"#;
+    let disabled_cfg: AppConfig =
+        serde_json::from_str(json_disabled).expect("parse disabled protection config");
+    assert_eq!(disabled_cfg.language, Language::English);
+    assert!(!disabled_cfg.protection);
+}
+
+#[test]
+fn test_crash_monitor_controller_start_stop() {
+    use rnazar::messaging::monitor::CrashMonitorController;
+    use std::sync::Arc;
+
+    let controller = CrashMonitorController::new(Arc::new(|_| {}));
+    assert!(!controller.is_running());
+
+    controller.start();
+    assert!(controller.is_running());
+
+    // Idempotent start
+    controller.start();
+    assert!(controller.is_running());
+
+    controller.stop();
+    assert!(!controller.is_running());
+
+    // Idempotent stop
+    controller.stop();
+    assert!(!controller.is_running());
+
+    // Can be started again after stop
+    controller.start();
+    assert!(controller.is_running());
+
+    controller.stop();
+    assert!(!controller.is_running());
+}
+
+#[test]
+fn test_tray_icons_colored_and_grayscale() {
+    use rnazar::tray::load_tray_icon;
+
+    let icon_colored = load_tray_icon(true);
+    assert!(icon_colored.is_ok(), "failed to load colored tray icon");
+
+    let icon_gray = load_tray_icon(false);
+    assert!(icon_gray.is_ok(), "failed to load grayscale tray icon");
 }
 
 #[test]

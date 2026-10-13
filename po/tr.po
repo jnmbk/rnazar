@@ -16,7 +16,11 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
 
-#: src/i18n/mod.rs:136
+#: src/i18n/mod.rs:173
+msgid "Protection"
+msgstr "Koruma"
+
+#: src/i18n/mod.rs:177
 msgid "Language"
 msgstr "Dil"
 
