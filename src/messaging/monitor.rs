@@ -878,7 +878,6 @@ impl ActiveMonitors {
 #[cfg(target_os = "windows")]
 struct ActiveMonitors {
     running: Arc<std::sync::atomic::AtomicBool>,
-    evt_handle: Arc<Mutex<Option<usize>>>,
     evt_stop_tx: Option<std::sync::mpsc::SyncSender<()>>,
     evt_thread: Option<std::thread::JoinHandle<()>>,
     dir_stop_tx: Option<std::sync::mpsc::SyncSender<()>>,
@@ -1000,11 +999,9 @@ impl ActiveMonitors {
         }
 
         let running = Arc::new(AtomicBool::new(true));
-        let evt_handle = Arc::new(Mutex::new(None));
 
         let (evt_stop_tx, evt_stop_rx) = std::sync::mpsc::sync_channel::<()>(0);
         let evt_running = Arc::clone(&running);
-        let evt_handle_clone = Arc::clone(&evt_handle);
         let evt_cb = cb.clone();
 
         let evt_thread = std::thread::Builder::new()
@@ -1045,19 +1042,12 @@ impl ActiveMonitors {
                     return;
                 }
 
-                if let Ok(mut guard) = evt_handle_clone.lock() {
-                    *guard = Some(handle as usize);
-                }
-
                 log::debug!("Subscribed to Windows Application Event Log (EventID 1000).");
                 let _ = evt_stop_rx.recv();
 
                 unsafe {
                     EvtClose(handle);
                     drop(Box::from_raw(ctx_ptr.cast::<WinEvtContext>()));
-                }
-                if let Ok(mut guard) = evt_handle_clone.lock() {
-                    *guard = None;
                 }
             })
             .ok();
@@ -1100,7 +1090,6 @@ impl ActiveMonitors {
 
         Self {
             running,
-            evt_handle,
             evt_stop_tx: Some(evt_stop_tx),
             evt_thread,
             dir_stop_tx,
