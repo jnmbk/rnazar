@@ -1,15 +1,49 @@
 use crate::i18n::Language;
 use notify_rust::Notification;
 
-pub fn show_crash_notification(language: Language, app_name: Option<&str>) {
-    #[cfg(target_os = "macos")]
-    {
-        let bundle = notify_rust::get_bundle_identifier_or_default("org.rnazar.app");
-        let _ = notify_rust::set_application(&bundle);
-    }
+#[cfg(target_os = "macos")]
+fn show_macos_notification(title: &str, body: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let script = "on run argv\n  display notification (item 1 of argv) with title (item 2 of argv) sound name \"default\"\nend run";
+    let output = std::process::Command::new("/usr/bin/osascript")
+        .args(["-e", script, body, title])
+        .output()
+        .or_else(|_| {
+            std::process::Command::new("osascript")
+                .args(["-e", script, body, title])
+                .output()
+        })?;
 
+    if !output.status.success() {
+        let err = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("osascript failed (status {}): {}", output.status, err.trim()).into());
+    }
+    Ok(())
+}
+
+pub fn show_crash_notification(language: Language, app_name: Option<&str>) {
     let title = language.crash_title();
     let body = language.crash_body(app_name);
+
+    #[cfg(target_os = "macos")]
+    {
+        log::debug!(
+            "Calling macOS native notification with title='{}', body='{}'",
+            title,
+            body
+        );
+        match show_macos_notification(title, &body) {
+            Ok(()) => {
+                log::debug!("Desktop notification shown successfully via osascript");
+                return;
+            }
+            Err(e) => {
+                log::warn!(
+                    "osascript notification failed: {}, falling back to notify-rust",
+                    e
+                );
+            }
+        }
+    }
 
     let mut notification = Notification::new();
     notification.summary(title).body(&body).appname("rnazar");
@@ -55,14 +89,16 @@ fn keep_handle_alive(handle: notify_rust::NotificationHandle) {
 }
 
 pub fn show_about_notification(language: Language) {
-    #[cfg(target_os = "macos")]
-    {
-        let bundle = notify_rust::get_bundle_identifier_or_default("org.rnazar.app");
-        let _ = notify_rust::set_application(&bundle);
-    }
-
     let title = language.about_title();
     let body = language.about_body();
+
+    #[cfg(target_os = "macos")]
+    {
+        match show_macos_notification(title, &body) {
+            Ok(()) => return,
+            Err(e) => log::warn!("osascript about notification failed: {}", e),
+        }
+    }
 
     let mut notification = Notification::new();
     notification.summary(title).body(&body).appname("rnazar");

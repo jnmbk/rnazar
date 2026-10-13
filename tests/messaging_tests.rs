@@ -213,6 +213,20 @@ fn test_parse_macos_crash_log_and_ips_header() {
         Some("Firefox".to_string())
     );
 
+    // Path with spaces in application name
+    let ndjson_spaces = r#"{"eventMessage":"client log create type 309 result success: /Users/test/Library/Logs/DiagnosticReports/Brave Browser-2026-10-12-210000.ips"}"#;
+    assert_eq!(
+        parse_macos_crash_log(ndjson_spaces),
+        Some("Brave Browser".to_string())
+    );
+
+    // Formulating crash report for process ...
+    let proc_log = r#"{"eventMessage":"Formulating crash report for process Safari [1234]"}"#;
+    assert_eq!(
+        parse_macos_crash_log(proc_log),
+        Some("Safari".to_string())
+    );
+
     let legacy_saved =
         "Saved crash report for Pages[4120] version 14.0 to /Users/test/Library/Logs/DiagnosticReports/Pages_2026-10-12.crash";
     assert_eq!(
@@ -230,8 +244,18 @@ fn test_parse_macos_crash_log_and_ips_header() {
         Some("Blender".to_string())
     );
 
+    // Support numeric bug_type (e.g. integer 309)
+    let crash_ips_numeric = "{\"app_name\":\"Blender\",\"bug_type\":309,\"name\":\"Blender\"}\n{\"procName\":\"Blender\"}";
+    assert_eq!(
+        parse_macos_ips_header(crash_ips_numeric),
+        Some("Blender".to_string())
+    );
+
     let spin_ips = "{\"app_name\":\"Blender\",\"bug_type\":\"202\",\"name\":\"Blender\"}\n{}";
     assert_eq!(parse_macos_ips_header(spin_ips), None);
+
+    let spin_ips_numeric = "{\"app_name\":\"Blender\",\"bug_type\":202,\"name\":\"Blender\"}\n{}";
+    assert_eq!(parse_macos_ips_header(spin_ips_numeric), None);
 }
 
 #[test]

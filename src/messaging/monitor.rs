@@ -191,7 +191,13 @@ fn parse_macos_ips_header_inner(content: &str) -> Option<Option<String>> {
     let val: serde_json::Value = serde_json::from_str(first_line).ok()?;
     let obj = val.as_object()?;
 
-    if let Some(bug_type) = obj.get("bug_type").and_then(|v| v.as_str()) {
+    let bug_type = obj.get("bug_type").and_then(|v| {
+        v.as_str()
+            .map(|s| s.to_string())
+            .or_else(|| v.as_i64().map(|n| n.to_string()))
+    });
+
+    if let Some(bug_type) = bug_type {
         // In Apple OSAnalytics, bug_type 309 (macOS 12+) and 109 (legacy) denote app crashes
         if bug_type != "309" && bug_type != "109" {
             return Some(None);
@@ -233,6 +239,7 @@ pub fn parse_macos_crash_log(line: &str) -> Option<String> {
 
     // Pattern 1: "Formulating fatal 309 report for corpse[1959] UnCrackable Level 1"
     // or "Formulating fatal report for corpse[1234] Safari"
+    // or "Formulating crash report for process Safari [1234]"
     if msg.contains("Formulating") {
         if let Some(corpse_idx) = msg.find("corpse[") {
             let after_corpse = &msg[corpse_idx + "corpse[".len()..];
@@ -241,6 +248,13 @@ pub fn parse_macos_crash_log(line: &str) -> Option<String> {
                 if let Some(app) = normalize_app_name(app_part) {
                     return Some(app);
                 }
+            }
+        }
+        if let Some(proc_idx) = msg.find("process ") {
+            let after_proc = &msg[proc_idx + "process ".len()..];
+            let app_part = after_proc.split('[').next().unwrap_or(after_proc).trim();
+            if let Some(app) = normalize_app_name(app_part) {
+                return Some(app);
             }
         }
     }
@@ -254,8 +268,31 @@ pub fn parse_macos_crash_log(line: &str) -> Option<String> {
         }
     }
 
-    // Pattern 3: OSAnalytics / ReportCrash saving a type 309 .ips or .crash report path
-    if msg.contains("309") || msg.contains("crash report") {
+    // Pattern 3: OSAnalytics / ReportCrash saving or writing a type 309 .ips or .crash report path
+    // e.g. "client log create type 309 result success: /Users/test/Library/Logs/DiagnosticReports/Brave Browser-2026-10-12-210000.ips"
+    // or "Crash report written to: /path/to/AppName-2026-10-12.ips"
+    if msg.contains("309")
+        || msg.contains("crash report")
+        || msg.contains("Crash report")
+        || msg.contains("DiagnosticReports")
+    {
+        for ext in [".ips", ".crash"] {
+            if let Some(ext_pos) = msg.rfind(ext) {
+                let end_pos = ext_pos + ext.len();
+                let candidate = &msg[..end_pos];
+                let path_start = candidate
+                    .rfind(|c: char| c == ':' || c == '"' || c == '\'' || c == '>')
+                    .map(|i| i + 1)
+                    .unwrap_or(0);
+                let path_str = candidate[path_start..].trim();
+                let fname = path_str.rsplit('/').next().unwrap_or(path_str);
+                if let Some(app) = parse_crash_filename(fname) {
+                    return Some(app);
+                }
+            }
+        }
+
+        // Fallback for space-separated token matching (if path had no prefix punctuation)
         for token in msg.split_whitespace().rev() {
             let clean = token.trim_matches(['"', '\'', ',', ';', ')']);
             if clean.ends_with(".ips") || clean.ends_with(".crash") {
@@ -485,15 +522,27 @@ impl CrashDirScanner {
     pub fn new(dirs: Vec<PathBuf>) -> Self {
         let mut seen = HashSet::new();
         for dir in &dirs {
-            if let Ok(entries) = std::fs::read_dir(dir) {
-                for entry in entries.flatten() {
-                    let path = entry.path();
-                    if path
-                        .file_name()
-                        .and_then(|n| n.to_str())
-                        .is_some_and(|s| !s.starts_with('.'))
-                    {
-                        seen.insert(path);
+            match std::fs::read_dir(dir) {
+                Ok(entries) => {
+                    for entry in entries.flatten() {
+                        let path = entry.path();
+                        if path
+                            .file_name()
+                            .and_then(|n| n.to_str())
+                            .is_some_and(|s| !s.starts_with('.'))
+                        {
+                            seen.insert(path);
+                        }
+                    }
+                }
+                Err(e) => {
+                    if e.kind() == std::io::ErrorKind::PermissionDenied {
+                        log::warn!(
+                            "Permission denied reading diagnostic reports directory {:?}. Full Disk Access may be required on macOS.",
+                            dir
+                        );
+                    } else {
+                        log::debug!("Could not read diagnostic directory {:?}: {}", dir, e);
                     }
                 }
             }
@@ -740,7 +789,7 @@ impl ActiveMonitors {
                     "--style",
                     "ndjson",
                     "--predicate",
-                    r#"process == "ReportCrash""#,
+                    r#"process == "ReportCrash" or subsystem == "com.apple.crashreporter""#,
                 ])
                 .stdout(Stdio::piped())
                 .stderr(Stdio::null());
@@ -752,7 +801,7 @@ impl ActiveMonitors {
                             "--style",
                             "ndjson",
                             "--predicate",
-                            r#"process == "ReportCrash""#,
+                            r#"process == "ReportCrash" or subsystem == "com.apple.crashreporter""#,
                         ])
                         .stdout(Stdio::piped())
                         .stderr(Stdio::null())
