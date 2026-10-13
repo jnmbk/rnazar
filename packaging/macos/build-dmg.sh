@@ -78,11 +78,12 @@ if command -v codesign &>/dev/null; then
 fi
 
 # Ensure background image exists
+BG_TIFF="${ROOT_DIR}/packaging/macos/background.tiff"
 BG_IMAGE="${ROOT_DIR}/packaging/macos/background.png"
-if [ ! -f "${BG_IMAGE}" ]; then
-    echo "==> Generating background graphic..."
+if [ ! -f "${BG_TIFF}" ] || [ "${FORCE_GEN_BG:-0}" = "1" ]; then
+    echo "==> Generating background graphics..."
     clang -framework Cocoa "${ROOT_DIR}/packaging/macos/generate-bg.m" -o /tmp/gen_dmg_bg
-    /tmp/gen_dmg_bg "${BG_IMAGE}"
+    /tmp/gen_dmg_bg "${ROOT_DIR}/packaging/macos"
     rm -f /tmp/gen_dmg_bg
 fi
 
@@ -101,12 +102,12 @@ if command -v create-dmg &>/dev/null; then
     create-dmg \
         --volname "${VOL_NAME}" \
         --volicon "${ROOT_DIR}/assets/icons/rnazar.icns" \
-        --background "${BG_IMAGE}" \
+        --background "${BG_TIFF}" \
         --window-pos 200 120 \
         --window-size 600 400 \
-        --icon-size 128 \
-        --icon "rnazar.app" 160 205 \
-        --app-drop-link 440 205 \
+        --icon-size 120 \
+        --icon "rnazar.app" 160 200 \
+        --app-drop-link 440 200 \
         --hide-extension "rnazar.app" \
         --overwrite \
         "${DMG_PATH}" \
@@ -123,6 +124,7 @@ elif command -v hdiutil &>/dev/null; then
 
     cp -R "${APP_BUNDLE}" "${STAGING_DIR}/rnazar.app"
     ln -s /Applications "${STAGING_DIR}/Applications"
+    cp "${BG_TIFF}" "${STAGING_DIR}/.background/background.tiff" 2>/dev/null || true
     cp "${BG_IMAGE}" "${STAGING_DIR}/.background/background.png"
     cp "${ROOT_DIR}/assets/icons/rnazar.icns" "${STAGING_DIR}/.VolumeIcon.icns"
 
@@ -141,7 +143,7 @@ elif command -v hdiutil &>/dev/null; then
 
     sync
     hdiutil detach "${DEV}" 2>/dev/null || (sleep 2 && hdiutil detach "${DEV}" -force 2>/dev/null) || true
-    hdiutil convert "${TEMP_DMG}" -format ULMO -ov -o "${DMG_PATH}"
+    hdiutil convert "${TEMP_DMG}" -format UDZO -ov -o "${DMG_PATH}"
     rm -f "${TEMP_DMG}"
     rm -rf "${STAGING_DIR}"
 
