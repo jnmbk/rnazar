@@ -222,10 +222,7 @@ fn test_parse_macos_crash_log_and_ips_header() {
 
     // Formulating crash report for process ...
     let proc_log = r#"{"eventMessage":"Formulating crash report for process Safari [1234]"}"#;
-    assert_eq!(
-        parse_macos_crash_log(proc_log),
-        Some("Safari".to_string())
-    );
+    assert_eq!(parse_macos_crash_log(proc_log), Some("Safari".to_string()));
 
     let legacy_saved =
         "Saved crash report for Pages[4120] version 14.0 to /Users/test/Library/Logs/DiagnosticReports/Pages_2026-10-12.crash";

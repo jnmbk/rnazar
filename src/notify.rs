@@ -15,7 +15,12 @@ fn show_macos_notification(title: &str, body: &str) -> Result<(), Box<dyn std::e
 
     if !output.status.success() {
         let err = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("osascript failed (status {}): {}", output.status, err.trim()).into());
+        return Err(format!(
+            "osascript failed (status {}): {}",
+            output.status,
+            err.trim()
+        )
+        .into());
     }
     Ok(())
 }

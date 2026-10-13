@@ -281,7 +281,7 @@ pub fn parse_macos_crash_log(line: &str) -> Option<String> {
                 let end_pos = ext_pos + ext.len();
                 let candidate = &msg[..end_pos];
                 let path_start = candidate
-                    .rfind(|c: char| c == ':' || c == '"' || c == '\'' || c == '>')
+                    .rfind([':', '"', '\'', '>'])
                     .map(|i| i + 1)
                     .unwrap_or(0);
                 let path_str = candidate[path_start..].trim();
