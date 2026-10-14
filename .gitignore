@@ -12,6 +12,21 @@ Cargo.lock.dist
 Thumbs.db
 *.exe
 *.msi
+*.pdb
+*.ilk
+*.exp
+*.o
+*.obj
+*.rcgu.o
+
+# Crash dumps & test reports
+*.dmp
+*.mdmp
+*.hdmp
+*.wer
+*.ips
+*.crash
+*.sock
 
 # AppImage build artifacts
 AppDir/
