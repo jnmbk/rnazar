@@ -456,3 +456,63 @@ fn test_windows_live_crash_detection() {
 
     controller.stop();
 }
+
+#[test]
+fn test_normalize_app_name_edge_cases() {
+    use rnazar::messaging::monitor::normalize_app_name;
+
+    // Empty and whitespace
+    assert_eq!(normalize_app_name(""), None);
+    assert_eq!(normalize_app_name("   "), None);
+    assert_eq!(normalize_app_name("\t\n"), None);
+
+    // Quoted strings and paths
+    assert_eq!(normalize_app_name(r#""calc.exe""#), Some("calc".to_string()));
+    assert_eq!(normalize_app_name("'spotify'"), Some("spotify".to_string()));
+    assert_eq!(normalize_app_name(r#"C:\Program Files\VLC\vlc.exe"#), Some("vlc".to_string()));
+    assert_eq!(normalize_app_name("/usr/bin/gnome-terminal"), Some("gnome-terminal".to_string()));
+
+    // Dots and invalid names
+    assert_eq!(normalize_app_name(".hidden"), None);
+    assert_eq!(normalize_app_name(".exe"), None);
+    assert_eq!(normalize_app_name("/path/to/.dotapp"), None);
+
+    // Ignored crash reporters and rnazar itself
+    assert_eq!(normalize_app_name("rnazar"), None);
+    assert_eq!(normalize_app_name("rnazar.exe"), None);
+    assert_eq!(normalize_app_name("WerFault.exe"), None);
+    assert_eq!(normalize_app_name("WERFAULT"), None);
+    assert_eq!(normalize_app_name("reportcrash"), None);
+    assert_eq!(normalize_app_name("wermgr.exe"), None);
+}
+
+#[test]
+fn test_extract_crash_app_from_path() {
+    use rnazar::messaging::monitor::extract_crash_app_from_path;
+    use std::fs;
+
+    let temp_dir = std::env::temp_dir().join(format!("rnazar-extract-test-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&temp_dir);
+    fs::create_dir_all(&temp_dir).expect("create temp dir");
+
+    // Non-crash extension returns None
+    let non_crash_file = temp_dir.join("readme.txt");
+    assert_eq!(extract_crash_app_from_path(&non_crash_file), None);
+
+    // .ips with JSON header
+    let ips_path = temp_dir.join("App-2026-10-12-000000.ips");
+    fs::write(&ips_path, "{\"app_name\":\"CustomApp\",\"bug_type\":\"309\"}\n{}").unwrap();
+    assert_eq!(extract_crash_app_from_path(&ips_path), Some("CustomApp".to_string()));
+
+    // .dmp filename fallback
+    let dmp_path = temp_dir.join("testapp.exe.1234.dmp");
+    fs::write(&dmp_path, b"dummy dump data").unwrap();
+    assert_eq!(extract_crash_app_from_path(&dmp_path), Some("testapp".to_string()));
+
+    // Report.wer file
+    let wer_path = temp_dir.join("Report.wer");
+    fs::write(&wer_path, "Version=1\r\nEventType=APPCRASH\r\nNsAppName=word.exe\r\n").unwrap();
+    assert_eq!(extract_crash_app_from_path(&wer_path), Some("word".to_string()));
+
+    let _ = fs::remove_dir_all(&temp_dir);
+}

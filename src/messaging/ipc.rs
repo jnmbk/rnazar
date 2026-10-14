@@ -87,13 +87,21 @@ mod windows_ipc {
         GenericNamespaced, ListenerOptions, Stream, ToNsName,
     };
 
-    const PIPE_NAME: &str = "rnazar-messaging.sock";
+    fn pipe_name() -> String {
+        if let Some(custom) = std::env::var_os("RNAZAR_SOCKET_PATH") {
+            let path = std::path::PathBuf::from(custom);
+            if let Some(fname) = path.file_name().and_then(|s| s.to_str()) {
+                return fname.to_string();
+            }
+        }
+        "rnazar-messaging.sock".to_string()
+    }
 
     pub fn start_ipc_server(cb: CrashCallback) {
         let _ = std::thread::Builder::new()
             .name("rnazar-ipc".into())
             .spawn(move || {
-                let name = match PIPE_NAME.to_ns_name::<GenericNamespaced>() {
+                let name = match pipe_name().to_ns_name::<GenericNamespaced>() {
                     Ok(n) => n,
                     Err(e) => {
                         log::warn!("Invalid Windows pipe name: {}", e);
@@ -124,7 +132,7 @@ mod windows_ipc {
     }
 
     pub fn send_ipc_crash(app_name: Option<&str>) -> Result<(), Box<dyn std::error::Error>> {
-        let name = PIPE_NAME.to_ns_name::<GenericNamespaced>()?;
+        let name = pipe_name().to_ns_name::<GenericNamespaced>()?;
         let mut conn = Stream::connect(name)?;
         let msg = IpcCrashMessage {
             app_name: app_name.map(|s| s.to_string()),
