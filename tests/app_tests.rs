@@ -89,7 +89,10 @@ fn test_config_path_format() {
     }
 }
 
+// muda::Menu requires the macOS main thread (NSApplication event loop),
+// which standard Rust test worker threads cannot provide.
 #[test]
+#[cfg(not(target_os = "macos"))]
 fn test_tray_menu_controller_lifecycle() {
     let controller = TrayMenuController::new(Language::Turkish, true);
     assert!(controller.is_ok(), "TrayMenuController creation succeeded");
