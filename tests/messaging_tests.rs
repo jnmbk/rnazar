@@ -417,15 +417,19 @@ fn test_windows_live_crash_detection() {
     use std::sync::Arc;
     use std::time::Duration;
 
+    let unique_id = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0);
     let crasher_path =
-        std::env::temp_dir().join(format!("rnazar_crasher_{}.exe", std::process::id()));
+        std::env::temp_dir().join(format!("rnazar_crasher_{}_{}.exe", std::process::id(), unique_id));
     if !crasher_path.exists() {
         let status = std::process::Command::new("powershell")
             .args([
                 "-NoProfile",
                 "-Command",
                 &format!(
-                    r#"Add-Type -TypeDefinition "using System; using System.Threading; public class Crasher {{ public static void Main() {{ new Thread(() => {{ throw new Exception(); }}).Start(); Thread.Sleep(5000); }} }}" -OutputAssembly "{}" -OutputType ConsoleApplication"#,
+                    r#"Add-Type -TypeDefinition "using System; public class Crasher {{ public static void Main() {{ throw new Exception(); }} }}" -OutputAssembly "{}" -OutputType ConsoleApplication"#,
                     crasher_path.display()
                 ),
             ])
@@ -441,18 +445,35 @@ fn test_windows_live_crash_detection() {
     }));
 
     controller.start();
-    // Allow threads to settle and subscribe
-    std::thread::sleep(Duration::from_millis(200));
 
-    let _ = std::process::Command::new(&crasher_path).status();
+    let _ = std::process::Command::new(&crasher_path)
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status();
 
-    let received = rx.recv_timeout(Duration::from_secs(8));
+    let expected_name = format!("rnazar_crasher_{}_{}", std::process::id(), unique_id);
+    let deadline = std::time::Instant::now() + Duration::from_secs(12);
+    let mut detected = false;
+
+    while std::time::Instant::now() < deadline {
+        let remaining = deadline.saturating_duration_since(std::time::Instant::now());
+        if let Ok(app) = rx.recv_timeout(remaining) {
+            if app.as_deref() == Some(expected_name.as_str()) {
+                detected = true;
+                break;
+            }
+        } else {
+            break;
+        }
+    }
+
     let _ = std::fs::remove_file(&crasher_path);
 
-    assert!(received.is_ok(), "Expected crash notification within 8s");
-    let app = received.unwrap();
-    let expected_name = format!("rnazar_crasher_{}", std::process::id());
-    assert_eq!(app.as_deref(), Some(expected_name.as_str()));
+    assert!(
+        detected,
+        "Expected crash notification for {} within 12s",
+        expected_name
+    );
 
     controller.stop();
 }

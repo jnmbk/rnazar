@@ -1097,6 +1097,7 @@ impl ActiveMonitors {
 
         let running = Arc::new(AtomicBool::new(true));
 
+        let (evt_ready_tx, evt_ready_rx) = std::sync::mpsc::sync_channel::<()>(0);
         let (evt_stop_tx, evt_stop_rx) = std::sync::mpsc::sync_channel::<()>(0);
         let evt_running = Arc::clone(&running);
         let evt_cb = cb.clone();
@@ -1106,7 +1107,7 @@ impl ActiveMonitors {
             .spawn(move || {
                 let channel: Vec<u16> = "Application\0".encode_utf16().collect();
                 let query: Vec<u16> =
-                    "*[System[Provider[@Name='Application Error'] and (EventID=1000)]]\0"
+                    "*[System[(Provider[@Name='Application Error'] and (EventID=1000)) or (Provider[@Name='Windows Error Reporting'] and (EventID=1001))]]\0"
                         .encode_utf16()
                         .collect();
 
@@ -1129,9 +1130,11 @@ impl ActiveMonitors {
                     )
                 };
 
+                let _ = evt_ready_tx.send(());
+
                 if handle.is_null() {
                     log::warn!(
-                        "Failed to subscribe to Windows Application Event Log (EventID 1000)."
+                        "Failed to subscribe to Windows Application Event Log (EventID 1000/1001)."
                     );
                     unsafe {
                         drop(Box::from_raw(ctx_ptr.cast::<WinEvtContext>()));
@@ -1139,7 +1142,7 @@ impl ActiveMonitors {
                     return;
                 }
 
-                log::debug!("Subscribed to Windows Application Event Log (EventID 1000).");
+                log::debug!("Subscribed to Windows Application Event Log (EventID 1000/1001).");
                 let _ = evt_stop_rx.recv();
 
                 unsafe {
@@ -1148,6 +1151,9 @@ impl ActiveMonitors {
                 }
             })
             .ok();
+
+        // Ensure EvtSubscribe has finished registering so events are not missed
+        let _ = evt_ready_rx.recv_timeout(Duration::from_secs(1));
 
         let watch_dirs = default_crash_watch_dirs();
         let (dir_stop_tx, dir_thread) = if watch_dirs.is_empty() {
