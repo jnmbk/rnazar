@@ -421,8 +421,11 @@ fn test_windows_live_crash_detection() {
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_millis())
         .unwrap_or(0);
-    let crasher_path =
-        std::env::temp_dir().join(format!("rnazar_crasher_{}_{}.exe", std::process::id(), unique_id));
+    let crasher_path = std::env::temp_dir().join(format!(
+        "rnazar_crasher_{}_{}.exe",
+        std::process::id(),
+        unique_id
+    ));
     if !crasher_path.exists() {
         let status = std::process::Command::new("powershell")
             .args([
@@ -488,10 +491,19 @@ fn test_normalize_app_name_edge_cases() {
     assert_eq!(normalize_app_name("\t\n"), None);
 
     // Quoted strings and paths
-    assert_eq!(normalize_app_name(r#""calc.exe""#), Some("calc".to_string()));
+    assert_eq!(
+        normalize_app_name(r#""calc.exe""#),
+        Some("calc".to_string())
+    );
     assert_eq!(normalize_app_name("'spotify'"), Some("spotify".to_string()));
-    assert_eq!(normalize_app_name(r#"C:\Program Files\VLC\vlc.exe"#), Some("vlc".to_string()));
-    assert_eq!(normalize_app_name("/usr/bin/gnome-terminal"), Some("gnome-terminal".to_string()));
+    assert_eq!(
+        normalize_app_name(r#"C:\Program Files\VLC\vlc.exe"#),
+        Some("vlc".to_string())
+    );
+    assert_eq!(
+        normalize_app_name("/usr/bin/gnome-terminal"),
+        Some("gnome-terminal".to_string())
+    );
 
     // Dots and invalid names
     assert_eq!(normalize_app_name(".hidden"), None);
@@ -522,18 +534,35 @@ fn test_extract_crash_app_from_path() {
 
     // .ips with JSON header
     let ips_path = temp_dir.join("App-2026-10-12-000000.ips");
-    fs::write(&ips_path, "{\"app_name\":\"CustomApp\",\"bug_type\":\"309\"}\n{}").unwrap();
-    assert_eq!(extract_crash_app_from_path(&ips_path), Some("CustomApp".to_string()));
+    fs::write(
+        &ips_path,
+        "{\"app_name\":\"CustomApp\",\"bug_type\":\"309\"}\n{}",
+    )
+    .unwrap();
+    assert_eq!(
+        extract_crash_app_from_path(&ips_path),
+        Some("CustomApp".to_string())
+    );
 
     // .dmp filename fallback
     let dmp_path = temp_dir.join("testapp.exe.1234.dmp");
     fs::write(&dmp_path, b"dummy dump data").unwrap();
-    assert_eq!(extract_crash_app_from_path(&dmp_path), Some("testapp".to_string()));
+    assert_eq!(
+        extract_crash_app_from_path(&dmp_path),
+        Some("testapp".to_string())
+    );
 
     // Report.wer file
     let wer_path = temp_dir.join("Report.wer");
-    fs::write(&wer_path, "Version=1\r\nEventType=APPCRASH\r\nNsAppName=word.exe\r\n").unwrap();
-    assert_eq!(extract_crash_app_from_path(&wer_path), Some("word".to_string()));
+    fs::write(
+        &wer_path,
+        "Version=1\r\nEventType=APPCRASH\r\nNsAppName=word.exe\r\n",
+    )
+    .unwrap();
+    assert_eq!(
+        extract_crash_app_from_path(&wer_path),
+        Some("word".to_string())
+    );
 
     let _ = fs::remove_dir_all(&temp_dir);
 }

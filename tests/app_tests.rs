@@ -27,11 +27,23 @@ fn test_cli_parsing_notify_subcommand_without_app() {
 
 #[test]
 fn test_cli_parsing_notify_subcommand_with_app() {
-    let cli = Cli::try_parse_from(["rnazar", "notify", "--app", "gimp"]).expect("parse notify with --app");
-    assert_eq!(cli.command, Some(Commands::Notify { app: Some("gimp".to_string()) }));
+    let cli = Cli::try_parse_from(["rnazar", "notify", "--app", "gimp"])
+        .expect("parse notify with --app");
+    assert_eq!(
+        cli.command,
+        Some(Commands::Notify {
+            app: Some("gimp".to_string())
+        })
+    );
 
-    let cli_short = Cli::try_parse_from(["rnazar", "notify", "-a", "vlc"]).expect("parse notify with -a");
-    assert_eq!(cli_short.command, Some(Commands::Notify { app: Some("vlc".to_string()) }));
+    let cli_short =
+        Cli::try_parse_from(["rnazar", "notify", "-a", "vlc"]).expect("parse notify with -a");
+    assert_eq!(
+        cli_short.command,
+        Some(Commands::Notify {
+            app: Some("vlc".to_string())
+        })
+    );
 }
 
 #[test]
@@ -91,7 +103,10 @@ fn test_tray_menu_controller_lifecycle() {
 
     // Switch language to English
     ctrl.update_language(&Language::English);
-    assert_eq!(ctrl.item_protection.text(), Language::English.menu_protection());
+    assert_eq!(
+        ctrl.item_protection.text(),
+        Language::English.menu_protection()
+    );
     assert_eq!(ctrl.item_about.text(), Language::English.menu_about());
     assert_eq!(ctrl.item_exit.text(), Language::English.menu_exit());
 
@@ -108,4 +123,3 @@ fn test_tray_icon_rendering() {
     let icon_off = load_tray_icon(false);
     assert!(icon_off.is_ok());
 }
-

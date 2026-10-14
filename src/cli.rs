@@ -25,4 +25,3 @@ pub enum Commands {
         app: Option<String>,
     },
 }
-
