@@ -417,7 +417,8 @@ fn test_windows_live_crash_detection() {
     use std::sync::Arc;
     use std::time::Duration;
 
-    let crasher_path = std::env::temp_dir().join(format!("rnazar_crasher_{}.exe", std::process::id()));
+    let crasher_path =
+        std::env::temp_dir().join(format!("rnazar_crasher_{}.exe", std::process::id()));
     if !crasher_path.exists() {
         let status = std::process::Command::new("powershell")
             .args([
@@ -448,10 +449,7 @@ fn test_windows_live_crash_detection() {
     let received = rx.recv_timeout(Duration::from_secs(8));
     let _ = std::fs::remove_file(&crasher_path);
 
-    assert!(
-        received.is_ok(),
-        "Expected crash notification within 8s"
-    );
+    assert!(received.is_ok(), "Expected crash notification within 8s");
     let app = received.unwrap();
     let expected_name = format!("rnazar_crasher_{}", std::process::id());
     assert_eq!(app.as_deref(), Some(expected_name.as_str()));

@@ -359,8 +359,12 @@ pub fn parse_windows_event_xml(xml: &str) -> Option<String> {
                     let val_rest = &after_attr[gt_idx + 1..];
                     if let Some(close_idx) = find_ascii_ignore_case(val_rest, "</Data>") {
                         let ev_name = val_rest[..close_idx].trim();
-                        const CRASH_PREFIXES: &[&str] = &["appcrash", "bex", "moappcrash", "clr20r3"];
-                        if CRASH_PREFIXES.iter().any(|p| strip_ascii_prefix_ignore_case(ev_name, p).is_some()) {
+                        const CRASH_PREFIXES: &[&str] =
+                            &["appcrash", "bex", "moappcrash", "clr20r3"];
+                        if CRASH_PREFIXES
+                            .iter()
+                            .any(|p| strip_ascii_prefix_ignore_case(ev_name, p).is_some())
+                        {
                             is_crash = true;
                         }
                     }
