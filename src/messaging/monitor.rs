@@ -327,14 +327,17 @@ pub fn parse_windows_event_xml(xml: &str) -> Option<String> {
         return None;
     }
 
-    // If <EventID> tag is present, ensure it is EventID 1000 (Application Error)
+    // If <EventID> tag is present, ensure it is EventID 1000 (Application Error) or 1001 (WER)
+    let mut is_event_1001 = false;
     if let Some(eid_start) = find_ascii_ignore_case(trimmed, "<EventID") {
         let after_tag = &trimmed[eid_start..];
         let gt = after_tag.find('>')?;
         let rest = &after_tag[gt + 1..];
         let end_eid = find_ascii_ignore_case(rest, "</EventID>")?;
         let eid_text = rest[..end_eid].trim();
-        if eid_text != "1000" {
+        if eid_text == "1001" {
+            is_event_1001 = true;
+        } else if eid_text != "1000" {
             return None;
         }
     }
@@ -346,13 +349,54 @@ pub fn parse_windows_event_xml(xml: &str) -> Option<String> {
     let ed_end = find_ascii_ignore_case(ed_body_and_rest, "</EventData>")?;
     let ed_body = &ed_body_and_rest[..ed_end];
 
+    // For EventID 1001, verify EventName is a crash type
+    if is_event_1001 {
+        let mut is_crash = false;
+        for pattern in ["Name=\"EventName\"", "Name='EventName'"] {
+            if let Some(attr_idx) = find_ascii_ignore_case(ed_body, pattern) {
+                let after_attr = &ed_body[attr_idx + pattern.len()..];
+                if let Some(gt_idx) = after_attr.find('>') {
+                    let val_rest = &after_attr[gt_idx + 1..];
+                    if let Some(close_idx) = find_ascii_ignore_case(val_rest, "</Data>") {
+                        let ev_name = val_rest[..close_idx].trim();
+                        const CRASH_PREFIXES: &[&str] = &["appcrash", "bex", "moappcrash", "clr20r3"];
+                        if CRASH_PREFIXES.iter().any(|p| strip_ascii_prefix_ignore_case(ev_name, p).is_some()) {
+                            is_crash = true;
+                        }
+                    }
+                }
+            }
+        }
+        if !is_crash {
+            return None;
+        }
+    }
+
     // Prefer named <Data Name="AppName"> / <Data Name='AppName'> (Windows 11 / Server 2022+)
-    for pattern in [
-        "Name=\"AppName\"",
-        "Name='AppName'",
-        "Name=\"Application\"",
-        "Name='Application'",
-    ] {
+    // Also check AppPath, PackageRelativeAppId, and P1 (for WER 1001)
+    let patterns = if is_event_1001 {
+        &[
+            "Name=\"P1\"",
+            "Name='P1'",
+            "Name=\"AppName\"",
+            "Name='AppName'",
+            "Name=\"AppPath\"",
+            "Name='AppPath'",
+        ][..]
+    } else {
+        &[
+            "Name=\"AppName\"",
+            "Name='AppName'",
+            "Name=\"Application\"",
+            "Name='Application'",
+            "Name=\"AppPath\"",
+            "Name='AppPath'",
+            "Name=\"PackageRelativeAppId\"",
+            "Name='PackageRelativeAppId'",
+        ][..]
+    };
+
+    for &pattern in patterns {
         if let Some(attr_idx) = find_ascii_ignore_case(ed_body, pattern) {
             let after_attr = &ed_body[attr_idx + pattern.len()..];
             if let Some(gt_idx) = after_attr.find('>') {

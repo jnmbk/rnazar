@@ -292,7 +292,54 @@ fn test_parse_windows_event_xml_and_wer_report() {
     </Event>"#;
     assert_eq!(parse_windows_event_xml(win10_xml), Some("vlc".to_string()));
 
-    // Non-1000 event ID should be ignored
+    // Windows 11 Event ID 1000 XML with AppPath fallback
+    let win11_apppath_xml = r#"
+    <Event xmlns='http://schemas.microsoft.com/win/2004/08/events/event'>
+      <System>
+        <Provider Name='Application Error'/>
+        <EventID>1000</EventID>
+      </System>
+      <EventData>
+        <Data Name='AppPath'>C:\Program Files\WindowsApps\GIMP\bin\pythonw.exe</Data>
+      </EventData>
+    </Event>"#;
+    assert_eq!(
+        parse_windows_event_xml(win11_apppath_xml),
+        Some("pythonw".to_string())
+    );
+
+    // Windows Event ID 1001 (Windows Error Reporting) APPCRASH
+    let win_wer_1001_xml = r#"
+    <Event xmlns='http://schemas.microsoft.com/win/2004/08/events/event'>
+      <System>
+        <Provider Name='Windows Error Reporting'/>
+        <EventID>1001</EventID>
+      </System>
+      <EventData>
+        <Data Name='EventName'>APPCRASH</Data>
+        <Data Name='P1'>calculator.exe</Data>
+      </EventData>
+    </Event>"#;
+    assert_eq!(
+        parse_windows_event_xml(win_wer_1001_xml),
+        Some("calculator".to_string())
+    );
+
+    // Windows Event ID 1001 non-crash should be ignored
+    let win_wer_noncrash_xml = r#"
+    <Event xmlns='http://schemas.microsoft.com/win/2004/08/events/event'>
+      <System>
+        <Provider Name='Windows Error Reporting'/>
+        <EventID>1001</EventID>
+      </System>
+      <EventData>
+        <Data Name='EventName'>WindowsUpdateFailure</Data>
+        <Data Name='P1'>update.exe</Data>
+      </EventData>
+    </Event>"#;
+    assert_eq!(parse_windows_event_xml(win_wer_noncrash_xml), None);
+
+    // Non-1000/1001 event ID should be ignored
     let other_event_xml = r#"<Event><System><EventID>1002</EventID></System><EventData><Data>notepad.exe</Data></EventData></Event>"#;
     assert_eq!(parse_windows_event_xml(other_event_xml), None);
 
@@ -360,4 +407,54 @@ fn test_crash_dir_scanner() {
     assert_eq!(scanner.poll_new_crashes(), vec!["mspaint".to_string()]);
 
     let _ = fs::remove_dir_all(&temp_dir);
+}
+
+#[test]
+#[cfg(target_os = "windows")]
+fn test_windows_live_crash_detection() {
+    use rnazar::messaging::monitor::CrashMonitorController;
+    use std::sync::mpsc::channel;
+    use std::sync::Arc;
+    use std::time::Duration;
+
+    let crasher_path = std::env::temp_dir().join(format!("rnazar_crasher_{}.exe", std::process::id()));
+    if !crasher_path.exists() {
+        let status = std::process::Command::new("powershell")
+            .args([
+                "-NoProfile",
+                "-Command",
+                &format!(
+                    r#"Add-Type -TypeDefinition "using System; using System.Threading; public class Crasher {{ public static void Main() {{ new Thread(() => {{ throw new Exception(); }}).Start(); Thread.Sleep(5000); }} }}" -OutputAssembly "{}" -OutputType ConsoleApplication"#,
+                    crasher_path.display()
+                ),
+            ])
+            .status();
+        if !status.is_ok_and(|s| s.success()) {
+            return;
+        }
+    }
+
+    let (tx, rx) = channel();
+    let controller = CrashMonitorController::new(Arc::new(move |app| {
+        let _ = tx.send(app);
+    }));
+
+    controller.start();
+    // Allow threads to settle and subscribe
+    std::thread::sleep(Duration::from_millis(200));
+
+    let _ = std::process::Command::new(&crasher_path).status();
+
+    let received = rx.recv_timeout(Duration::from_secs(8));
+    let _ = std::fs::remove_file(&crasher_path);
+
+    assert!(
+        received.is_ok(),
+        "Expected crash notification within 8s"
+    );
+    let app = received.unwrap();
+    let expected_name = format!("rnazar_crasher_{}", std::process::id());
+    assert_eq!(app.as_deref(), Some(expected_name.as_str()));
+
+    controller.stop();
 }
