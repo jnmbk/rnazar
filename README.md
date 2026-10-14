@@ -1,5 +1,7 @@
 # rnazar 🧿
 
+[English](README.md) | [Türkçe](README.tr.md)
+
 > The evil eye ward for your system tray & crash notifier.
 
 A cross-platform system tray application written in Rust for **Linux**, **Windows**, and **macOS**. It lives in your system tray, provides language selection and about controls via a right-click menu, and alerts you with *"an evil eye struck and it was taken care of"* whenever an application crashes.
@@ -12,12 +14,11 @@ This project is inspired by knazar project that was made for KDE3 back in 2006 b
 
 - **System Tray Icon**: Displays the Nazar amulet icon in the notification area.
 - **Right-Click Context Menu**:
-  - **Language**: Toggle between **Auto** (detects system language), **English**, and **Türkçe**.
+  - **Language**: Toggle between **Auto** (detects system language), **English**, and other supported languages.
   - **About**: Displays information about the app and the Nazar amulet.
   - **Exit**: Closes the application.
 - **Localized Crash Notifications**:
-  - Turkish: *"Nazar değdi ve icabına bakıldı."*
-  - English: *"An evil eye struck and it was taken care of."*
+  - Alerts you when an application crashes (e.g. *"An evil eye struck and it was taken care of."*).
 - **Automatic OS Crash Detection**:
   - **Linux**: Monitors `systemd-coredump` events in real time via `journalctl`.
   - **macOS**: Streams `ReportCrash` events from Unified Logging (`log stream`) and monitors `DiagnosticReports` (`.ips` / `.crash`).
@@ -67,7 +68,7 @@ To build locally:
 ./packaging/appimage/build-appimage.sh
 ```
 
-### Linux (Debian / Ubuntu)
+### Linux (Debian / Ubuntu / Linux Mint / Pop!_OS)
 Download `rnazar_<version>_amd64.deb` from GitHub Releases and install:
 ```bash
 sudo dpkg -i rnazar_<version>_amd64.deb
@@ -90,7 +91,7 @@ To build locally:
 ./packaging/fedora/build-rpm.sh
 ```
 
-### Linux (Arch Linux)
+### Linux (Arch Linux / EndeavourOS / Manjaro / CachyOS / Garuda)
 Download `rnazar-<version>-1-x86_64.pkg.tar.zst` from GitHub Releases and install:
 ```bash
 sudo pacman -U rnazar-<version>-1-x86_64.pkg.tar.zst
