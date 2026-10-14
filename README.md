@@ -1,131 +1,131 @@
 # rnazar 🧿
 
-[English](README.md) | [Türkçe](README.tr.md)
+[English](README.en.md) | [Türkçe](README.md)
 
-> The evil eye ward for your system tray & crash notifier.
+> Sistem çekmeceniz için çökme bildirici ve nazar boncuğu.
 
-A cross-platform system tray application written in Rust for **Linux**, **Windows**, and **macOS**. It lives in your system tray, provides language selection and about controls via a right-click menu, and alerts you with *"an evil eye struck and it was taken care of"* whenever an application crashes.
+**Linux**, **Windows** ve **macOS** için Rust ile yazılmış, çapraz platform bir sistem tepsisi uygulamasıdır. Sistem tepsinizde yer alır, sağ tık menüsü ile dil seçimi ve hakkında bilgilerini sunar ve bir uygulama çöktüğünde *"nazar değdi ve icabına bakıldı"* uyarısıyla size bildirir.
 
-This project is inspired by knazar project that was made for KDE3 back in 2006 by Pardus project.
-
----
-
-## Features
-
-- **System Tray Icon**: Displays the Nazar amulet icon in the notification area.
-- **Right-Click Context Menu**:
-  - **Language**: Toggle between **Auto** (detects system language), **English**, and other supported languages.
-  - **About**: Displays information about the app and the Nazar amulet.
-  - **Exit**: Closes the application.
-- **Localized Crash Notifications**:
-  - Alerts you when an application crashes (e.g. *"An evil eye struck and it was taken care of."*).
-- **Automatic OS Crash Detection**:
-  - **Linux**: Monitors `systemd-coredump` events in real time via `journalctl`.
-  - **macOS**: Streams `ReportCrash` events from Unified Logging (`log stream`) and monitors `DiagnosticReports` (`.ips` / `.crash`).
-  - **Windows**: Subscribes in real time to Windows Application Event Log (`EventID 1000` / `Application Error`) and watches Windows Error Reporting (`WER\ReportArchive`, `WER\ReportQueue`, and `CrashDumps`).
-- **Desktop Messaging Integration**:
-  - **Linux (D-Bus)**: Exposes `org.rnazar.Notifier` on the session bus with `NotifyCrash(app_name: String)`.
-  - **Cross-Platform CLI**: Trigger notifications easily with `rnazar notify --app <name>` or `rnazar --crash <name>`.
-  - **IPC**: Local named pipe / Unix domain socket listener for third-party crash handlers.
-- **Desktop Shortcuts with Icon**:
-  - All shortcuts (Windows `.lnk`, Linux `.desktop`, macOS `.app`) display the Nazar icon.
+Bu proje, 2006 yılında Pardus projesi kapsamında KDE3 için geliştirilen knazar projesinden esinlenmiştir.
 
 ---
 
-## Triggering Crash Notifications
+## Özellikler
 
-### 1. Via CLI
+- **Sistem Tepsisi Simgesi**: Bildirim alanında nazar boncuğu simgesini görüntüler.
+- **Sağ Tık Bağlam Menüsü**:
+  - **Dil**: **Otomatik** (sistem dilini algılar), **Türkçe** ve diğer desteklenen diller arasında geçiş yapın.
+  - **Hakkında**: Uygulama ve nazar boncuğu hakkında bilgi görüntüler.
+  - **Çıkış**: Uygulamayı kapatır.
+- **Yerelleştirilmiş Çökme Bildirimleri**:
+  - Bir uygulama çöktüğünde bildirim gönderir (örn. *"Nazar değdi ve icabına bakıldı."*).
+- **Otomatik İşletim Sistemi Çökme Tespiti**:
+  - **Linux**: `journalctl` aracılığıyla gerçek zamanlı olarak `systemd-coredump` olaylarını izler.
+  - **macOS**: Unified Logging (`log stream`) üzerinden `ReportCrash` olaylarını ve `DiagnosticReports` (`.ips` / `.crash`) dizinini takip eder.
+  - **Windows**: Windows Olay Günlüğü'ne (`EventID 1000` / `Application Error`) gerçek zamanlı abone olur ve Windows Hata Bildirimi'ni (`WER\ReportArchive`, `WER\ReportQueue` ve `CrashDumps`) izler.
+- **Masaüstü Mesajlaşma Entegrasyonu**:
+  - **Linux (D-Bus)**: `org.rnazar.Notifier` arayüzünü `NotifyCrash(app_name: String)` ile oturum veriyolunda (session bus) sunar.
+  - **Çapraz Platform CLI**: `rnazar notify --app <ad>` veya `rnazar --crash <ad>` ile bildirimleri kolayca tetikleyin.
+  - **IPC**: Üçüncü taraf çökme yakalayıcıları (crash handlers) için yerel named pipe / Unix domain socket dinleyicisi.
+- **Simgeli Masaüstü Kısayolları**:
+  - Tüm kısayollar (Windows `.lnk`, Linux `.desktop`, macOS `.app`) nazar boncuğu simgesiyle oluşturulur.
+
+---
+
+## Çökme Bildirimlerini Tetikleme
+
+### 1. CLI ile
 ```bash
-# Report an application crash
-rnazar notify --app "calculator"
+# Bir uygulama çökmesini bildirme
+rnazar notify --app "hesap-makinesi"
 
-# Quick flag
-rnazar --crash "calculator"
+# Hızlı bayrak ile
+rnazar --crash "hesap-makinesi"
 ```
 
-### 2. Via Linux D-Bus Messaging Infrastructure
+### 2. Linux D-Bus Mesajlaşma Altyapısı ile
 ```bash
-# Using busctl:
+# busctl kullanarak:
 busctl --user call org.rnazar.Notifier /org/rnazar/Notifier org.rnazar.Notifier NotifyCrash s "gnome-calculator"
 
-# Using gdbus:
+# gdbus kullanarak:
 gdbus call --session --dest org.rnazar.Notifier --object-path /org/rnazar/Notifier --method org.rnazar.Notifier.NotifyCrash "firefox"
 ```
 
 ---
 
-## Installation & Packaging
+## Kurulum ve Paketleme
 
 ### Linux (AppImage)
-Download `rnazar-x86_64.AppImage` from GitHub Releases, make it executable, and run:
+GitHub Sürümleri (Releases) sayfasından `rnazar-x86_64.AppImage` dosyasını indirin, çalıştırılabilir yapın ve çalıştırın:
 ```bash
 chmod +x rnazar-x86_64.AppImage
 ./rnazar-x86_64.AppImage
 ```
 
-To build locally:
+Yerel olarak derlemek için:
 ```bash
 ./packaging/appimage/build-appimage.sh
 ```
 
 ### Linux (Debian / Ubuntu / Linux Mint / Pop!_OS)
-Download `rnazar_<version>_amd64.deb` from GitHub Releases and install:
+GitHub Releases sayfasından `rnazar_<version>_amd64.deb` paketini indirin ve kurun:
 ```bash
 sudo dpkg -i rnazar_<version>_amd64.deb
-sudo apt-get install -f # resolve any missing dependencies if needed
+sudo apt-get install -f # gerekirse eksik bağımlılıkları çözer
 ```
 
-To build locally:
+Yerel olarak derlemek için:
 ```bash
 ./packaging/debian/build-deb.sh
 ```
 
 ### Linux (Fedora / RHEL)
-Download `rnazar-<version>-1.x86_64.rpm` from GitHub Releases and install:
+GitHub Releases sayfasından `rnazar-<version>-1.x86_64.rpm` paketini indirin ve kurun:
 ```bash
 sudo dnf install ./rnazar-<version>-1.x86_64.rpm
 ```
 
-To build locally:
+Yerel olarak derlemek için:
 ```bash
 ./packaging/fedora/build-rpm.sh
 ```
 
 ### Linux (Arch Linux / EndeavourOS / Manjaro / CachyOS / Garuda)
-Download `rnazar-<version>-1-x86_64.pkg.tar.zst` from GitHub Releases and install:
+GitHub Releases sayfasından `rnazar-<version>-1-x86_64.pkg.tar.zst` paketini indirin ve kurun:
 ```bash
 sudo pacman -U rnazar-<version>-1-x86_64.pkg.tar.zst
 ```
 
-Or build with `makepkg` or the package script:
+Veya `makepkg` ya da paketleme betiği ile derleyin:
 ```bash
 cd packaging/arch && makepkg -si
-# or
+# veya
 ./packaging/arch/build-arch.sh
 ```
 
 ### Windows (Inno Setup)
-Download and run `rnazar-vX.Y.Z-windows-x64-setup.exe` from Releases. It will install the application to `Program Files`, create Start Menu and Desktop shortcuts with the Nazar icon, and optionally enable startup on boot.
+Releases sayfasından `rnazar-vX.Y.Z-windows-x64-setup.exe` dosyasını indirip çalıştırın. Uygulamayı `Program Files` dizinine kuracak, nazar simgeli Başlat Menüsü ve Masaüstü kısayollarını oluşturacak ve isteğe bağlı olarak başlangıçta çalıştırmayı etkinleştirecektir.
 
 ### macOS (DMG)
-Download `rnazar-vX.Y.Z-macos-universal.dmg`, open it, and drag `rnazar.app` to your Applications folder.
+`rnazar-vX.Y.Z-macos-universal.dmg` dosyasını indirin, açın ve `rnazar.app` uygulamasını Uygulamalar (Applications) klasörünüze sürükleyin.
 
 > [!IMPORTANT]
-> **macOS Permissions & System Settings:**
-> 1. **Opening the App (Gatekeeper):** As an open-source application not notarized with an Apple Developer certificate, macOS may show an alert on first launch stating that the developer cannot be verified.
->    - Go to **System Settings** > **Privacy & Security**.
->    - Scroll down to the Security section and click **"Open Anyway"** to confirm.
->    - *Alternatively:* Right-click (or Control-click) `rnazar.app` in `/Applications` and select **Open**. You can also run `xattr -cr /Applications/rnazar.app` in Terminal to clear the quarantine flag.
-> 2. **Notification Permissions:** To display crash alerts on screen, make sure notifications are enabled for `rnazar` under **System Settings** > **Notifications**.
-> 3. **Full Disk Access (Optional / Crash Detection):** `rnazar` monitors macOS Unified Logging (`log stream`) and crash report files in `DiagnosticReports`. On recent macOS releases, granting **Full Disk Access** under **System Settings** > **Privacy & Security** > **Full Disk Access** ensures uninterrupted access to system-level crash logs.
+> **macOS Sistem Ayarları ve İzinleri:**
+> 1. **Uygulamayı Açma İzni (Gatekeeper):** Apple Geliştirici sertifikasıyla imzalanmamış açık kaynaklı uygulamalarda macOS, ilk açılışta uygulamanın geliştiricisi doğrulanamadığı için açılamadığını belirten bir uyarı gösterebilir.
+>    - **Sistem Ayarları** (System Settings) > **Gizlilik ve Güvenlik** (Privacy & Security) bölümüne gidin.
+>    - Aşağı kaydırıp Güvenlik bölümünde yer alan **"Yine de Aç"** (Open Anyway) butonuna tıklayın ve onaylayın.
+>    - *Alternatif:* Uygulamalar klasöründeki `rnazar.app` simgesine sağ tıklayıp (veya `Control` tuşuna basılı tutarak tıklayıp) **Aç**'ı seçin. Dilerseniz Terminal'den `xattr -cr /Applications/rnazar.app` komutunu vererek karantina özniteliğini de kaldırabilirsiniz.
+> 2. **Bildirim İzinleri:** Çökme uyarılarının ekranda gösterilmesi için **Sistem Ayarları** > **Bildirimler** (Notifications) altında `rnazar` için bildirimlere izin verildiğinden emin olun.
+> 3. **Tam Disk Erişimi (İsteğe Bağlı / Çökme Tespiti):** `rnazar`, çökmeleri yakalamak için `log stream` ve `DiagnosticReports` dizinini takip eder. Sistem çapındaki kilitlenme raporlarının sorunsuz okunabilmesi için gerekirse **Sistem Ayarları** > **Gizlilik ve Güvenlik** > **Tam Disk Erişimi** (Full Disk Access) listesine `rnazar.app` uygulamasını ekleyin.
 
 ---
 
-## Building from Source
+## Kaynak Koddan Derleme
 
-Ensure you have Rust installed (1.80+):
+Sisteminizde Rust'ın (1.80+) kurulu olduğundan emin olun:
 ```bash
-# On Linux, ensure GTK 3 development headers are installed:
+# Linux'ta GTK 3 geliştirme paketlerinin kurulu olduğundan emin olun:
 # Ubuntu/Debian: sudo apt-get install libgtk-3-dev
 # Arch Linux: sudo pacman -S gtk3
 
@@ -134,7 +134,7 @@ cargo build --release
 
 ---
 
-## Running Tests
+## Testleri Çalıştırma
 
 ```bash
 cargo test
@@ -142,24 +142,23 @@ cargo test
 
 ---
 
-## Localization (i18n)
+## Yerelleştirme (i18n)
 
-Translations are managed via [`cargo-i18n`](https://github.com/kellpossible/cargo-i18n) using the standard GNU Gettext format (`.po` / `.pot` files under [`po/`](po/)).
+Çeviriler [`cargo-i18n`](https://github.com/kellpossible/cargo-i18n) kullanılarak standart GNU Gettext formatında ([`po/`](po/) altındaki `.po` / `.pot` dosyaları) yönetilir.
 
-At build time, [`build.rs`](build.rs) automatically compiles `.po` catalogs to binary `.mo` resources and embeds them into the executable with zero runtime or external dependencies.
+Derleme sırasında, [`build.rs`](build.rs) otomatik olarak `.po` kataloglarını ikili `.mo` kaynaklarına derler ve harici bir çalışma zamanı bağımlılığı olmadan çalıştırılabilir dosyaya gömer.
 
-To extract updated strings and synchronize translation catalogs:
+Güncel dizgeleri (strings) çıkarmak ve çeviri kataloglarını senkronize etmek için:
 ```bash
-# Install cargo-i18n (once)
+# cargo-i18n aracını kurun (bir defaya mahsus)
 cargo install cargo-i18n
 
-# Extract strings and synchronize .po files
+# Dizgeleri çıkarın ve .po dosyalarını senkronize edin
 cargo i18n
 ```
 
 ---
 
-## License
+## Lisans
 
-Licensed under [MIT License](LICENSE).
-
+Bu proje [MIT License](LICENSE) şartları altında lisanslanmıştır.
