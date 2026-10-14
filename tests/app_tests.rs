@@ -2,7 +2,9 @@ use clap::Parser;
 use rnazar::cli::{Cli, Commands};
 use rnazar::config::AppConfig;
 use rnazar::i18n::Language;
-use rnazar::tray::{load_tray_icon, TrayMenuController};
+use rnazar::tray::load_tray_icon;
+#[cfg(not(target_os = "macos"))]
+use rnazar::tray::TrayMenuController;
 
 #[test]
 fn test_cli_parsing_default() {
