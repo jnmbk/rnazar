@@ -51,7 +51,11 @@ pub fn run_tray_application() -> Result<(), Box<dyn Error>> {
     });
 
     // Build tray icon (keep instance alive for event loop lifetime)
-    let tray_icon = build_tray_icon(menu_controller.menu.clone(), &initial_lang, initial_protection)?;
+    let tray_icon = build_tray_icon(
+        menu_controller.menu.clone(),
+        &initial_lang,
+        initial_protection,
+    )?;
 
     log::debug!("rnazar system tray active. Running event loop...");
 
@@ -91,7 +95,8 @@ pub fn run_tray_application() -> Result<(), Box<dyn Error>> {
                         cfg.language = Language::Auto;
                         cfg.save();
                         menu_controller.update_language(&cfg.language);
-                        let _ = tray_icon.set_tooltip(Some(cfg.language.tray_tooltip(cfg.protection)));
+                        let _ =
+                            tray_icon.set_tooltip(Some(cfg.language.tray_tooltip(cfg.protection)));
                     }
                 } else if let Some(target) = menu_controller
                     .lang_items
@@ -102,7 +107,8 @@ pub fn run_tray_application() -> Result<(), Box<dyn Error>> {
                         cfg.language = target.language.clone();
                         cfg.save();
                         menu_controller.update_language(&cfg.language);
-                        let _ = tray_icon.set_tooltip(Some(cfg.language.tray_tooltip(cfg.protection)));
+                        let _ =
+                            tray_icon.set_tooltip(Some(cfg.language.tray_tooltip(cfg.protection)));
                     }
                 } else if id == menu_controller.item_about.id() {
                     let lang = config
