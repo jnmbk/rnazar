@@ -38,6 +38,8 @@ fn test_english_crash_body() {
 fn test_menu_strings_non_empty() {
     for lang in [Language::English, Language::Turkish, Language::Auto] {
         assert!(!lang.menu_protection().is_empty());
+        assert!(!lang.tray_tooltip(true).is_empty());
+        assert!(!lang.tray_tooltip(false).is_empty());
         assert!(!lang.menu_language().is_empty());
         assert!(!lang.menu_about().is_empty());
         assert!(!lang.menu_exit().is_empty());
@@ -54,6 +56,26 @@ fn test_menu_strings_non_empty() {
 fn test_menu_protection_translations() {
     assert_eq!(Language::English.menu_protection(), "Protection");
     assert_eq!(Language::Turkish.menu_protection(), "Koruma");
+}
+
+#[test]
+fn test_tray_tooltip_translations() {
+    assert_eq!(
+        Language::English.tray_tooltip(true),
+        "rnazar (Protection: Enabled)"
+    );
+    assert_eq!(
+        Language::English.tray_tooltip(false),
+        "rnazar (Protection: Disabled)"
+    );
+    assert_eq!(
+        Language::Turkish.tray_tooltip(true),
+        "rnazar (Koruma: Etkin)"
+    );
+    assert_eq!(
+        Language::Turkish.tray_tooltip(false),
+        "rnazar (Koruma: Devre Dışı)"
+    );
 }
 
 #[test]

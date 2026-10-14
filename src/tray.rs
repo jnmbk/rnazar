@@ -106,11 +106,16 @@ pub fn load_tray_icon(protection_enabled: bool) -> Result<Icon, Box<dyn Error>> 
     Ok(icon)
 }
 
-pub fn build_tray_icon(menu: Menu, protection_enabled: bool) -> Result<TrayIcon, Box<dyn Error>> {
+pub fn build_tray_icon(
+    menu: Menu,
+    lang: &Language,
+    protection_enabled: bool,
+) -> Result<TrayIcon, Box<dyn Error>> {
     let icon = load_tray_icon(protection_enabled)?;
+    let tooltip = lang.tray_tooltip(protection_enabled);
     let tray = TrayIconBuilder::new()
         .with_menu(Box::new(menu))
-        .with_tooltip("rnazar")
+        .with_tooltip(tooltip)
         .with_icon(icon)
         .build()?;
     Ok(tray)

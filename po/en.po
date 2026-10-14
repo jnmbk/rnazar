@@ -21,6 +21,14 @@ msgid "Protection"
 msgstr "Protection"
 
 #: src/i18n/mod.rs:177
+msgid "Protection: Enabled"
+msgstr "Protection: Enabled"
+
+#: src/i18n/mod.rs:178
+msgid "Protection: Disabled"
+msgstr "Protection: Disabled"
+
+#: src/i18n/mod.rs:182
 msgid "Language"
 msgstr "Language"
 

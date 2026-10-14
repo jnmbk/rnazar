@@ -174,6 +174,15 @@ impl Language {
         self.gettext("Protection")
     }
 
+    pub fn tray_tooltip(&self, protection_enabled: bool) -> String {
+        let status = if protection_enabled {
+            self.gettext("Protection: Enabled")
+        } else {
+            self.gettext("Protection: Disabled")
+        };
+        format!("rnazar ({status})")
+    }
+
     pub fn menu_language(&self) -> &str {
         self.gettext("Language")
     }

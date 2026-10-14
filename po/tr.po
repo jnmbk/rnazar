@@ -21,6 +21,14 @@ msgid "Protection"
 msgstr "Koruma"
 
 #: src/i18n/mod.rs:177
+msgid "Protection: Enabled"
+msgstr "Koruma: Etkin"
+
+#: src/i18n/mod.rs:178
+msgid "Protection: Disabled"
+msgstr "Koruma: Devre Dışı"
+
+#: src/i18n/mod.rs:182
 msgid "Language"
 msgstr "Dil"
 

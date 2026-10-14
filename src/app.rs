@@ -19,7 +19,7 @@ pub fn run_tray_application() -> Result<(), Box<dyn Error>> {
         .read()
         .map(|c| (c.language.clone(), c.protection))
         .unwrap_or((Language::Auto, true));
-    let menu_controller = TrayMenuController::new(initial_lang, initial_protection)?;
+    let menu_controller = TrayMenuController::new(initial_lang.clone(), initial_protection)?;
 
     // Build event loop with custom user events
     let event_loop = EventLoopBuilder::<UserAppEvent>::with_user_event().build();
@@ -51,7 +51,7 @@ pub fn run_tray_application() -> Result<(), Box<dyn Error>> {
     });
 
     // Build tray icon (keep instance alive for event loop lifetime)
-    let tray_icon = build_tray_icon(menu_controller.menu.clone(), initial_protection)?;
+    let tray_icon = build_tray_icon(menu_controller.menu.clone(), &initial_lang, initial_protection)?;
 
     log::debug!("rnazar system tray active. Running event loop...");
 
@@ -74,6 +74,11 @@ pub fn run_tray_application() -> Result<(), Box<dyn Error>> {
                     if let Ok(icon) = load_tray_icon(new_state) {
                         let _ = tray_icon.set_icon(Some(icon));
                     }
+                    let current_lang = config
+                        .read()
+                        .map(|c| c.language.clone())
+                        .unwrap_or(Language::Auto);
+                    let _ = tray_icon.set_tooltip(Some(current_lang.tray_tooltip(new_state)));
                     if new_state {
                         log::debug!("Protection enabled: starting crash log monitor");
                         monitor_controller.start();
@@ -86,6 +91,7 @@ pub fn run_tray_application() -> Result<(), Box<dyn Error>> {
                         cfg.language = Language::Auto;
                         cfg.save();
                         menu_controller.update_language(&cfg.language);
+                        let _ = tray_icon.set_tooltip(Some(cfg.language.tray_tooltip(cfg.protection)));
                     }
                 } else if let Some(target) = menu_controller
                     .lang_items
@@ -96,6 +102,7 @@ pub fn run_tray_application() -> Result<(), Box<dyn Error>> {
                         cfg.language = target.language.clone();
                         cfg.save();
                         menu_controller.update_language(&cfg.language);
+                        let _ = tray_icon.set_tooltip(Some(cfg.language.tray_tooltip(cfg.protection)));
                     }
                 } else if id == menu_controller.item_about.id() {
                     let lang = config
