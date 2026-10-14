@@ -59,7 +59,7 @@ fn test_config_load_and_save_roundtrip() {
 
     // File doesn't exist yet -> load returns default
     let default_cfg = AppConfig::load_from_path(&cfg_path);
-    assert_eq!(default_cfg.protection, true);
+    assert!(default_cfg.protection);
 
     // Save customized config
     let custom_cfg = AppConfig {
@@ -72,12 +72,12 @@ fn test_config_load_and_save_roundtrip() {
     // Load back
     let loaded = AppConfig::load_from_path(&cfg_path);
     assert_eq!(loaded.language, Language::Turkish);
-    assert_eq!(loaded.protection, false);
+    assert!(!loaded.protection);
 
     // Corrupted file -> fallback to default
     std::fs::write(&cfg_path, "{ broken json content").expect("write broken json");
     let fallback = AppConfig::load_from_path(&cfg_path);
-    assert_eq!(fallback.protection, true);
+    assert!(fallback.protection);
 
     let _ = std::fs::remove_dir_all(&temp_dir);
 }
@@ -95,11 +95,11 @@ fn test_tray_menu_controller_lifecycle() {
     assert!(controller.is_ok(), "TrayMenuController creation succeeded");
 
     let ctrl = controller.unwrap();
-    assert_eq!(ctrl.item_protection.is_checked(), true);
+    assert!(ctrl.item_protection.is_checked());
 
     // Switch protection to false
     ctrl.update_protection(false);
-    assert_eq!(ctrl.item_protection.is_checked(), false);
+    assert!(!ctrl.item_protection.is_checked());
 
     // Switch language to English
     ctrl.update_language(&Language::English);
@@ -112,7 +112,7 @@ fn test_tray_menu_controller_lifecycle() {
 
     // Switch language to Auto
     ctrl.update_language(&Language::Auto);
-    assert_eq!(ctrl.item_lang_auto.is_checked(), true);
+    assert!(ctrl.item_lang_auto.is_checked());
 }
 
 #[test]
