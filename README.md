@@ -110,6 +110,15 @@ Download and run `rnazar-vX.Y.Z-windows-x64-setup.exe` from Releases. It will in
 ### macOS (DMG)
 Download `rnazar-vX.Y.Z-macos-universal.dmg`, open it, and drag `rnazar.app` to your Applications folder.
 
+> [!IMPORTANT]
+> **macOS Permissions & System Settings:**
+> 1. **Opening the App (Gatekeeper):** As an open-source application not notarized with an Apple Developer certificate, macOS may show an alert on first launch stating that the developer cannot be verified.
+>    - Go to **System Settings** > **Privacy & Security**.
+>    - Scroll down to the Security section and click **"Open Anyway"** to confirm.
+>    - *Alternatively:* Right-click (or Control-click) `rnazar.app` in `/Applications` and select **Open**. You can also run `xattr -cr /Applications/rnazar.app` in Terminal to clear the quarantine flag.
+> 2. **Notification Permissions:** To display crash alerts on screen, make sure notifications are enabled for `rnazar` under **System Settings** > **Notifications**.
+> 3. **Full Disk Access (Optional / Crash Detection):** `rnazar` monitors macOS Unified Logging (`log stream`) and crash report files in `DiagnosticReports`. On recent macOS releases, granting **Full Disk Access** under **System Settings** > **Privacy & Security** > **Full Disk Access** ensures uninterrupted access to system-level crash logs.
+
 ---
 
 ## Building from Source
@@ -152,5 +161,5 @@ cargo i18n
 
 ## License
 
-Licensed under either of [Apache License, Version 2.0](LICENSE) or [MIT License](LICENSE).
+Licensed under [MIT License](LICENSE).
 

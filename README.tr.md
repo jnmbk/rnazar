@@ -2,9 +2,9 @@
 
 [English](README.md) | [Türkçe](README.tr.md)
 
-> Sistem çekmeceniz (system tray) ve çökme bildiriciniz için nazar boncuğu.
+> Sistem çekmeceniz için çökme bildirici ve nazar boncuğu.
 
-**Linux**, **Windows** ve **macOS** için Rust ile yazılmış, çapraz platform bir sistem tepsisi (system tray) uygulamasıdır. Sistem tepsinizde yer alır, sağ tık menüsü ile dil seçimi ve hakkında bilgilerini sunar ve bir uygulama çöktüğünde *"nazar değdi ve icabına bakıldı"* uyarısıyla size bildirir.
+**Linux**, **Windows** ve **macOS** için Rust ile yazılmış, çapraz platform bir sistem tepsisi uygulamasıdır. Sistem tepsinizde yer alır, sağ tık menüsü ile dil seçimi ve hakkında bilgilerini sunar ve bir uygulama çöktüğünde *"nazar değdi ve icabına bakıldı"* uyarısıyla size bildirir.
 
 Bu proje, 2006 yılında Pardus projesi kapsamında KDE3 için geliştirilen knazar projesinden esinlenmiştir.
 
@@ -110,6 +110,15 @@ Releases sayfasından `rnazar-vX.Y.Z-windows-x64-setup.exe` dosyasını indirip 
 ### macOS (DMG)
 `rnazar-vX.Y.Z-macos-universal.dmg` dosyasını indirin, açın ve `rnazar.app` uygulamasını Uygulamalar (Applications) klasörünüze sürükleyin.
 
+> [!IMPORTANT]
+> **macOS Sistem Ayarları ve İzinleri:**
+> 1. **Uygulamayı Açma İzni (Gatekeeper):** Apple Geliştirici sertifikasıyla imzalanmamış açık kaynaklı uygulamalarda macOS, ilk açılışta uygulamanın geliştiricisi doğrulanamadığı için açılamadığını belirten bir uyarı gösterebilir.
+>    - **Sistem Ayarları** (System Settings) > **Gizlilik ve Güvenlik** (Privacy & Security) bölümüne gidin.
+>    - Aşağı kaydırıp Güvenlik bölümünde yer alan **"Yine de Aç"** (Open Anyway) butonuna tıklayın ve onaylayın.
+>    - *Alternatif:* Uygulamalar klasöründeki `rnazar.app` simgesine sağ tıklayıp (veya `Control` tuşuna basılı tutarak tıklayıp) **Aç**'ı seçin. Dilerseniz Terminal'den `xattr -cr /Applications/rnazar.app` komutunu vererek karantina özniteliğini de kaldırabilirsiniz.
+> 2. **Bildirim İzinleri:** Çökme uyarılarının ekranda gösterilmesi için **Sistem Ayarları** > **Bildirimler** (Notifications) altında `rnazar` için bildirimlere izin verildiğinden emin olun.
+> 3. **Tam Disk Erişimi (İsteğe Bağlı / Çökme Tespiti):** `rnazar`, çökmeleri yakalamak için `log stream` ve `DiagnosticReports` dizinini takip eder. Sistem çapındaki kilitlenme raporlarının sorunsuz okunabilmesi için gerekirse **Sistem Ayarları** > **Gizlilik ve Güvenlik** > **Tam Disk Erişimi** (Full Disk Access) listesine `rnazar.app` uygulamasını ekleyin.
+
 ---
 
 ## Kaynak Koddan Derleme
@@ -152,5 +161,5 @@ cargo i18n
 
 ## Lisans
 
-Bu proje [Apache License, Version 2.0](LICENSE) veya [MIT License](LICENSE) şartları altında lisanslanmıştır.
+Bu proje [MIT License](LICENSE) şartları altında lisanslanmıştır.
 
