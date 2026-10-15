@@ -4,7 +4,7 @@ version = "0.8.0"
 edition = "2021"
 authors = ["jnmbk"]
 description = "System tray evil eye ward and crash notifier"
-license = "MIT OR Apache-2.0"
+license = "MIT"
 repository = "https://github.com/jnmbk/rnazar"
 
 [dependencies]
