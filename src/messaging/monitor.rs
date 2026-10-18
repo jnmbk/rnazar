@@ -511,6 +511,31 @@ pub fn parse_windows_wer_report(content: &str) -> Option<String> {
         .or_else(|| friendly_app_name.and_then(normalize_app_name))
 }
 
+const MAX_WER_FILE_BYTES: u64 = 256 * 1024;
+const MAX_IPS_HEADER_BYTES: u64 = 64 * 1024;
+const MAX_SEEN_CRASH_PATHS: usize = 4096;
+
+fn read_file_bounded(path: &Path, max_bytes: u64) -> std::io::Result<Vec<u8>> {
+    use std::io::Read;
+    let file = std::fs::File::open(path)?;
+    let mut buf = Vec::new();
+    file.take(max_bytes).read_to_end(&mut buf)?;
+    Ok(buf)
+}
+
+fn read_first_line_bounded(path: &Path, max_bytes: u64) -> std::io::Result<String> {
+    use std::io::{BufRead, BufReader, Read};
+    let file = std::fs::File::open(path)?;
+    let reader = BufReader::new(file.take(max_bytes));
+    for line in reader.lines() {
+        let line = line?;
+        if !line.trim().is_empty() {
+            return Ok(line);
+        }
+    }
+    Ok(String::new())
+}
+
 /// Inspects a newly discovered crash report path (file or WER report subdirectory)
 /// and extracts the crashed application's name.
 pub fn extract_crash_app_from_path(path: &Path) -> Option<String> {
@@ -522,7 +547,7 @@ pub fn extract_crash_app_from_path(path: &Path) -> Option<String> {
     // If it's a directory (e.g. Windows WER `ReportArchive/AppCrash_...`), check `Report.wer` inside
     if path.is_dir() {
         let wer_file = path.join("Report.wer");
-        if let Ok(bytes) = std::fs::read(&wer_file) {
+        if let Ok(bytes) = read_file_bounded(&wer_file, MAX_WER_FILE_BYTES) {
             let text = decode_wer_bytes(&bytes);
             if let Some(app) = parse_windows_wer_report(&text) {
                 return Some(app);
@@ -541,7 +566,7 @@ pub fn extract_crash_app_from_path(path: &Path) -> Option<String> {
 
     // Direct `.wer` file
     if strip_ascii_suffix_ignore_case(fname, ".wer").is_some() {
-        if let Ok(bytes) = std::fs::read(path) {
+        if let Ok(bytes) = read_file_bounded(path, MAX_WER_FILE_BYTES) {
             let text = decode_wer_bytes(&bytes);
             return parse_windows_wer_report(&text);
         }
@@ -549,8 +574,8 @@ pub fn extract_crash_app_from_path(path: &Path) -> Option<String> {
 
     // macOS `.ips` file: read JSON header on line 1 if possible to verify `bug_type == 309`
     if strip_ascii_suffix_ignore_case(fname, ".ips").is_some() {
-        if let Ok(content) = std::fs::read_to_string(path) {
-            if let Some(parsed) = parse_macos_ips_header_inner(&content) {
+        if let Ok(first_line) = read_first_line_bounded(path, MAX_IPS_HEADER_BYTES) {
+            if let Some(parsed) = parse_macos_ips_header_inner(&first_line) {
                 return parsed;
             }
         }
@@ -599,6 +624,9 @@ impl CrashDirScanner {
     }
 
     pub fn poll_new_crashes(&mut self) -> Vec<String> {
+        if self.seen.len() > MAX_SEEN_CRASH_PATHS {
+            self.seen.retain(|p| p.exists());
+        }
         let mut detected = Vec::new();
         for dir in &self.dirs {
             let Ok(entries) = std::fs::read_dir(dir) else {
@@ -699,7 +727,7 @@ pub fn start_crash_monitor(cb: CrashCallback) -> CrashMonitorController {
 #[cfg(target_os = "linux")]
 struct ActiveMonitors {
     running: Arc<std::sync::atomic::AtomicBool>,
-    child_pid: Arc<Mutex<Option<u32>>>,
+    child: Arc<Mutex<Option<std::process::Child>>>,
     thread_handle: Option<std::thread::JoinHandle<()>>,
 }
 
@@ -707,15 +735,14 @@ struct ActiveMonitors {
 impl ActiveMonitors {
     fn start(cb: CrashCallback) -> Self {
         use std::io::{BufRead, BufReader};
-        use std::os::unix::process::CommandExt;
         use std::process::{Command, Stdio};
         use std::sync::atomic::{AtomicBool, Ordering};
 
         let running = Arc::new(AtomicBool::new(true));
-        let child_pid = Arc::new(Mutex::new(None));
+        let child_slot = Arc::new(Mutex::new(None));
 
         let thread_running = Arc::clone(&running);
-        let thread_child_pid = Arc::clone(&child_pid);
+        let thread_child = Arc::clone(&child_slot);
 
         let thread_handle = std::thread::Builder::new()
             .name("rnazar-crash-mon".into())
@@ -731,32 +758,24 @@ impl ActiveMonitors {
                 .stdout(Stdio::piped())
                 .stderr(Stdio::null());
 
-                unsafe {
-                    cmd.pre_exec(|| {
-                        // Ensure journalctl child terminates automatically if rnazar exits
-                        libc::prctl(libc::PR_SET_PDEATHSIG, libc::SIGTERM);
-                        Ok(())
-                    });
-                }
-
                 if !thread_running.load(Ordering::SeqCst) {
                     return;
                 }
 
                 match cmd.spawn() {
                     Ok(mut child) => {
-                        let pid = child.id();
-                        if let Ok(mut guard) = thread_child_pid.lock() {
-                            *guard = Some(pid);
-                        }
-                        if !thread_running.load(Ordering::SeqCst) {
-                            let _ = child.kill();
-                            let _ = child.wait();
-                            return;
+                        let stdout = child.stdout.take();
+                        if let Ok(mut guard) = thread_child.lock() {
+                            if !thread_running.load(Ordering::SeqCst) {
+                                let _ = child.kill();
+                                let _ = child.wait();
+                                return;
+                            }
+                            *guard = Some(child);
                         }
 
                         log::debug!("Started systemd-coredump crash monitor via journalctl.");
-                        if let Some(stdout) = child.stdout.take() {
+                        if let Some(stdout) = stdout {
                             let reader = BufReader::new(stdout);
                             for line in reader.lines().map_while(Result::ok) {
                                 if !thread_running.load(Ordering::SeqCst) {
@@ -768,10 +787,12 @@ impl ActiveMonitors {
                                 }
                             }
                         }
-                        let _ = child.kill();
-                        let _ = child.wait();
-                        if let Ok(mut guard) = thread_child_pid.lock() {
-                            *guard = None;
+
+                        if let Ok(mut guard) = thread_child.lock() {
+                            if let Some(mut c) = guard.take() {
+                                let _ = c.kill();
+                                let _ = c.wait();
+                            }
                         }
                     }
                     Err(e) => {
@@ -783,32 +804,41 @@ impl ActiveMonitors {
 
         Self {
             running,
-            child_pid,
+            child: child_slot,
             thread_handle,
         }
     }
 
-    fn stop(mut self) {
+    fn stop_inner(&mut self) {
         use std::sync::atomic::Ordering;
 
         self.running.store(false, Ordering::SeqCst);
-        if let Ok(guard) = self.child_pid.lock() {
-            if let Some(pid) = *guard {
-                unsafe {
-                    libc::kill(pid as libc::pid_t, libc::SIGTERM);
-                }
+        if let Ok(mut guard) = self.child.lock() {
+            if let Some(ref mut c) = *guard {
+                let _ = c.kill();
             }
         }
         if let Some(handle) = self.thread_handle.take() {
             let _ = handle.join();
         }
     }
+
+    fn stop(mut self) {
+        self.stop_inner();
+    }
+}
+
+#[cfg(target_os = "linux")]
+impl Drop for ActiveMonitors {
+    fn drop(&mut self) {
+        self.stop_inner();
+    }
 }
 
 #[cfg(target_os = "macos")]
 struct ActiveMonitors {
     running: Arc<std::sync::atomic::AtomicBool>,
-    log_child_pid: Arc<Mutex<Option<u32>>>,
+    log_child: Arc<Mutex<Option<std::process::Child>>>,
     log_thread: Option<std::thread::JoinHandle<()>>,
     dir_stop_tx: Option<std::sync::mpsc::SyncSender<()>>,
     dir_thread: Option<std::thread::JoinHandle<()>>,
@@ -822,10 +852,10 @@ impl ActiveMonitors {
         use std::sync::atomic::{AtomicBool, Ordering};
 
         let running = Arc::new(AtomicBool::new(true));
-        let log_child_pid = Arc::new(Mutex::new(None));
+        let log_child = Arc::new(Mutex::new(None));
 
         let thread_running = Arc::clone(&running);
-        let thread_log_child_pid = Arc::clone(&log_child_pid);
+        let thread_log_child = Arc::clone(&log_child);
         let log_cb = cb.clone();
 
         let log_thread = std::thread::Builder::new()
@@ -862,18 +892,18 @@ impl ActiveMonitors {
 
                 match spawn_res {
                     Ok(mut child) => {
-                        let pid = child.id();
-                        if let Ok(mut guard) = thread_log_child_pid.lock() {
-                            *guard = Some(pid);
-                        }
-                        if !thread_running.load(Ordering::SeqCst) {
-                            let _ = child.kill();
-                            let _ = child.wait();
-                            return;
+                        let stdout = child.stdout.take();
+                        if let Ok(mut guard) = thread_log_child.lock() {
+                            if !thread_running.load(Ordering::SeqCst) {
+                                let _ = child.kill();
+                                let _ = child.wait();
+                                return;
+                            }
+                            *guard = Some(child);
                         }
 
                         log::debug!("Started macOS ReportCrash unified log stream monitor.");
-                        if let Some(stdout) = child.stdout.take() {
+                        if let Some(stdout) = stdout {
                             let reader = BufReader::new(stdout);
                             for line in reader.lines().map_while(Result::ok) {
                                 if !thread_running.load(Ordering::SeqCst) {
@@ -888,10 +918,12 @@ impl ActiveMonitors {
                                 }
                             }
                         }
-                        let _ = child.kill();
-                        let _ = child.wait();
-                        if let Ok(mut guard) = thread_log_child_pid.lock() {
-                            *guard = None;
+
+                        if let Ok(mut guard) = thread_log_child.lock() {
+                            if let Some(mut c) = guard.take() {
+                                let _ = c.kill();
+                                let _ = c.wait();
+                            }
                         }
                     }
                     Err(e) => {
@@ -942,22 +974,20 @@ impl ActiveMonitors {
 
         Self {
             running,
-            log_child_pid,
+            log_child,
             log_thread,
             dir_stop_tx,
             dir_thread,
         }
     }
 
-    fn stop(mut self) {
+    fn stop_inner(&mut self) {
         use std::sync::atomic::Ordering;
 
         self.running.store(false, Ordering::SeqCst);
-        if let Ok(guard) = self.log_child_pid.lock() {
-            if let Some(pid) = *guard {
-                unsafe {
-                    libc::kill(pid as libc::pid_t, libc::SIGTERM);
-                }
+        if let Ok(mut guard) = self.log_child.lock() {
+            if let Some(ref mut c) = *guard {
+                let _ = c.kill();
             }
         }
         if let Some(tx) = self.dir_stop_tx.take() {
@@ -969,6 +999,17 @@ impl ActiveMonitors {
         if let Some(handle) = self.dir_thread.take() {
             let _ = handle.join();
         }
+    }
+
+    fn stop(mut self) {
+        self.stop_inner();
+    }
+}
+
+#[cfg(target_os = "macos")]
+impl Drop for ActiveMonitors {
+    fn drop(&mut self) {
+        self.stop_inner();
     }
 }
 
@@ -1030,67 +1071,125 @@ impl ActiveMonitors {
             running: Arc<AtomicBool>,
         }
 
+        struct WinEvtSubscription {
+            handle: EvtHandle,
+            ctx_ptr: *mut WinEvtContext,
+        }
+
+        impl WinEvtSubscription {
+            fn new(
+                channel: &[u16],
+                query: &[u16],
+                ctx: WinEvtContext,
+                callback: EvtSubscribeCallback,
+            ) -> Option<Self> {
+                let ctx_ptr = Box::into_raw(Box::new(ctx));
+                let handle = unsafe {
+                    EvtSubscribe(
+                        null_mut(),
+                        null_mut(),
+                        channel.as_ptr(),
+                        query.as_ptr(),
+                        null_mut(),
+                        ctx_ptr.cast::<c_void>(),
+                        callback,
+                        EVT_SUBSCRIBE_TO_FUTURE_EVENTS,
+                    )
+                };
+                if handle.is_null() {
+                    unsafe {
+                        drop(Box::from_raw(ctx_ptr));
+                    }
+                    None
+                } else {
+                    Some(Self { handle, ctx_ptr })
+                }
+            }
+        }
+
+        impl Drop for WinEvtSubscription {
+            fn drop(&mut self) {
+                unsafe {
+                    if !self.handle.is_null() {
+                        EvtClose(self.handle);
+                    }
+                    if !self.ctx_ptr.is_null() {
+                        drop(Box::from_raw(self.ctx_ptr));
+                    }
+                }
+            }
+        }
+
         unsafe extern "system" fn event_callback(
             action: u32,
             user_context: *mut c_void,
             event: EvtHandle,
         ) -> u32 {
-            if action != EVT_SUBSCRIBE_ACTION_DELIVER || user_context.is_null() || event.is_null() {
-                return 0;
-            }
-
-            let ctx = &*user_context.cast::<WinEvtContext>();
-            if !ctx.running.load(Ordering::SeqCst) {
-                return 0;
-            }
-
-            let mut buffer_used: u32 = 0;
-            let mut property_count: u32 = 0;
-            let mut buf: Vec<u16> = vec![0u16; 4096];
-
-            let ok = EvtRender(
-                null_mut(),
-                event,
-                EVT_RENDER_EVENT_XML,
-                (buf.len() * std::mem::size_of::<u16>()) as u32,
-                buf.as_mut_ptr().cast::<c_void>(),
-                &mut buffer_used,
-                &mut property_count,
-            );
-
-            if ok == 0 && buffer_used > 0 && buffer_used <= 65536 {
-                let needed_u16 = (buffer_used as usize).div_ceil(2);
-                buf.resize(needed_u16, 0);
-                let retry_ok = EvtRender(
-                    null_mut(),
-                    event,
-                    EVT_RENDER_EVENT_XML,
-                    (buf.len() * std::mem::size_of::<u16>()) as u32,
-                    buf.as_mut_ptr().cast::<c_void>(),
-                    &mut buffer_used,
-                    &mut property_count,
-                );
-                if retry_ok == 0 {
-                    return 0;
+            let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                if action != EVT_SUBSCRIBE_ACTION_DELIVER
+                    || user_context.is_null()
+                    || event.is_null()
+                {
+                    return;
                 }
-            } else if ok == 0 {
-                return 0;
-            }
 
-            let u16_len = (buffer_used as usize / 2).min(buf.len());
-            let slice = &buf[..u16_len];
-            let trimmed_slice = slice.strip_suffix(&[0]).unwrap_or(slice);
-            let xml = String::from_utf16_lossy(trimmed_slice);
-
-            if let Some(app_name) = parse_windows_event_xml(&xml) {
-                if ctx.running.load(Ordering::SeqCst) {
-                    log::debug!(
-                        "Detected Windows application crash via Event Log (EventID 1000): {}",
-                        app_name
-                    );
-                    (ctx.cb)(Some(app_name));
+                let ctx = unsafe { &*user_context.cast::<WinEvtContext>() };
+                if !ctx.running.load(Ordering::SeqCst) {
+                    return;
                 }
-            }
+
+                let mut buffer_used: u32 = 0;
+                let mut property_count: u32 = 0;
+                let mut buf: Vec<u16> = vec![0u16; 4096];
+
+                let ok = unsafe {
+                    EvtRender(
+                        null_mut(),
+                        event,
+                        EVT_RENDER_EVENT_XML,
+                        (buf.len() * std::mem::size_of::<u16>()) as u32,
+                        buf.as_mut_ptr().cast::<c_void>(),
+                        &mut buffer_used,
+                        &mut property_count,
+                    )
+                };
+
+                if ok == 0 && buffer_used > 0 && buffer_used <= 65536 {
+                    let needed_u16 = (buffer_used as usize).div_ceil(2);
+                    buf.resize(needed_u16, 0);
+                    let retry_ok = unsafe {
+                        EvtRender(
+                            null_mut(),
+                            event,
+                            EVT_RENDER_EVENT_XML,
+                            (buf.len() * std::mem::size_of::<u16>()) as u32,
+                            buf.as_mut_ptr().cast::<c_void>(),
+                            &mut buffer_used,
+                            &mut property_count,
+                        )
+                    };
+                    if retry_ok == 0 {
+                        return;
+                    }
+                } else if ok == 0 {
+                    return;
+                }
+
+                let u16_len = (buffer_used as usize / 2).min(buf.len());
+                let slice = &buf[..u16_len];
+                let trimmed_slice = slice.strip_suffix(&[0]).unwrap_or(slice);
+                let xml = String::from_utf16_lossy(trimmed_slice);
+
+                if let Some(app_name) = parse_windows_event_xml(&xml) {
+                    if ctx.running.load(Ordering::SeqCst) {
+                        log::debug!(
+                            "Detected Windows application crash via Event Log (EventID 1000): {}",
+                            app_name
+                        );
+                        (ctx.cb)(Some(app_name));
+                    }
+                }
+            }));
 
             0
         }
@@ -1111,44 +1210,27 @@ impl ActiveMonitors {
                         .encode_utf16()
                         .collect();
 
-                let ctx_ptr = Box::into_raw(Box::new(WinEvtContext {
-                    cb: evt_cb,
-                    running: evt_running,
-                }))
-                .cast::<c_void>();
-
-                let handle = unsafe {
-                    EvtSubscribe(
-                        null_mut(),
-                        null_mut(),
-                        channel.as_ptr(),
-                        query.as_ptr(),
-                        null_mut(),
-                        ctx_ptr,
-                        event_callback,
-                        EVT_SUBSCRIBE_TO_FUTURE_EVENTS,
-                    )
-                };
+                let subscription = WinEvtSubscription::new(
+                    &channel,
+                    &query,
+                    WinEvtContext {
+                        cb: evt_cb,
+                        running: evt_running,
+                    },
+                    event_callback,
+                );
 
                 let _ = evt_ready_tx.send(());
 
-                if handle.is_null() {
+                let Some(_subscription) = subscription else {
                     log::warn!(
                         "Failed to subscribe to Windows Application Event Log (EventID 1000/1001)."
                     );
-                    unsafe {
-                        drop(Box::from_raw(ctx_ptr.cast::<WinEvtContext>()));
-                    }
                     return;
-                }
+                };
 
                 log::debug!("Subscribed to Windows Application Event Log (EventID 1000/1001).");
                 let _ = evt_stop_rx.recv();
-
-                unsafe {
-                    EvtClose(handle);
-                    drop(Box::from_raw(ctx_ptr.cast::<WinEvtContext>()));
-                }
             })
             .ok();
 
@@ -1200,7 +1282,7 @@ impl ActiveMonitors {
         }
     }
 
-    fn stop(mut self) {
+    fn stop_inner(&mut self) {
         use std::sync::atomic::Ordering;
 
         self.running.store(false, Ordering::SeqCst);
@@ -1216,6 +1298,17 @@ impl ActiveMonitors {
         if let Some(handle) = self.dir_thread.take() {
             let _ = handle.join();
         }
+    }
+
+    fn stop(mut self) {
+        self.stop_inner();
+    }
+}
+
+#[cfg(target_os = "windows")]
+impl Drop for ActiveMonitors {
+    fn drop(&mut self) {
+        self.stop_inner();
     }
 }
 

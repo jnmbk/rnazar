@@ -19,8 +19,6 @@ pub fn run_tray_application() -> Result<(), Box<dyn Error>> {
         .read()
         .map(|c| (c.language.clone(), c.protection))
         .unwrap_or((Language::Auto, true));
-    #[cfg(target_os = "linux")]
-    crate::about::sync_gtk_locale(&initial_lang);
     let menu_controller = TrayMenuController::new(initial_lang.clone(), initial_protection)?;
 
     // Build event loop with custom user events
@@ -132,10 +130,12 @@ pub fn run_tray_application() -> Result<(), Box<dyn Error>> {
                             gtk::Window::NONE,
                             gtk::DialogFlags::MODAL,
                             gtk::MessageType::Warning,
-                            gtk::ButtonsType::YesNo,
+                            gtk::ButtonsType::None,
                             lang.exit_confirm_message(),
                         );
                         dialog.set_title(lang.exit_confirm_title());
+                        dialog.add_button(lang.dialog_no(), gtk::ResponseType::No);
+                        dialog.add_button(lang.dialog_yes(), gtk::ResponseType::Yes);
                         let response = dialog.run();
                         dialog.close();
                         response == gtk::ResponseType::Yes
@@ -154,8 +154,9 @@ pub fn run_tray_application() -> Result<(), Box<dyn Error>> {
 
                     if confirmed {
                         log::debug!("Exit menu clicked and confirmed! Exiting rnazar...");
+                        monitor_controller.stop();
+                        crate::messaging::ipc::cleanup_ipc_socket();
                         *control_flow = ControlFlow::Exit;
-                        std::process::exit(0);
                     }
                 }
             }
