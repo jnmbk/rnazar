@@ -49,6 +49,84 @@ fn test_menu_strings_non_empty() {
         assert!(!lang.menu_lang_auto().is_empty());
         assert!(!lang.exit_confirm_title().is_empty());
         assert!(!lang.exit_confirm_message().is_empty());
+        assert!(!lang.website_label().is_empty());
+    }
+}
+
+#[test]
+fn test_about_window_translations() {
+    assert_eq!(Language::English.about_title(), "About rnazar");
+    assert_eq!(Language::Turkish.about_title(), "rnazar Hakkında");
+    assert_eq!(Language::English.website_label(), "rnazar on GitHub");
+    assert_eq!(Language::Turkish.website_label(), "GitHub'da rnazar");
+    assert_eq!(Language::English.inspiration_section(), "Inspiration");
+    assert_eq!(Language::Turkish.inspiration_section(), "Esinlenme");
+    assert_eq!(
+        Language::English.inspiration_info(),
+        "Inspired by knazar from Pardus 1.0"
+    );
+    assert_eq!(
+        Language::Turkish.inspiration_info(),
+        "Pardus 1.0 knazar uygulamasından esinlenilmiştir."
+    );
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn test_sync_gtk_locale() {
+    use rnazar::about::sync_gtk_locale;
+
+    sync_gtk_locale(&Language::Turkish);
+    assert_eq!(std::env::var("LANGUAGE").unwrap(), "tr");
+
+    sync_gtk_locale(&Language::English);
+    assert_eq!(std::env::var("LANGUAGE").unwrap(), "en");
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn test_about_dialog_gtk_widgets() {
+    use gtk::prelude::*;
+    use rnazar::about::sync_gtk_locale;
+
+    if gtk::init().is_err() {
+        return;
+    }
+
+    for (lang, expected_title, expected_btn) in [
+        (Language::Turkish, "rnazar Hakkında", "Hazırlayanlar"),
+        (Language::English, "About rnazar", "Credits"),
+    ] {
+        sync_gtk_locale(&lang);
+        let dialog = gtk::AboutDialog::new();
+        dialog.set_program_name("rnazar");
+        dialog.set_title(lang.about_title());
+        dialog.set_website_label(Some(lang.website_label()));
+
+        assert_eq!(dialog.title().as_deref(), Some(expected_title));
+
+        let mut labels = Vec::new();
+        fn collect_labels(widget: &gtk::Widget, labels: &mut Vec<String>) {
+            if let Ok(btn) = widget.clone().downcast::<gtk::Button>() {
+                if let Some(lbl) = btn.label() {
+                    labels.push(lbl.to_string());
+                }
+            }
+            if let Ok(container) = widget.clone().downcast::<gtk::Container>() {
+                for child in container.children() {
+                    collect_labels(&child, labels);
+                }
+            }
+        }
+        collect_labels(dialog.upcast_ref(), &mut labels);
+        assert!(
+            labels
+                .iter()
+                .any(|l| l.replace('_', "").contains(expected_btn)),
+            "Expected button '{}' in dialog labels: {:?}",
+            expected_btn,
+            labels
+        );
     }
 }
 

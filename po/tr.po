@@ -87,3 +87,7 @@ msgstr "Nazar değdi ve icabına bakıldı."
 #: src/i18n/mod.rs:207
 msgid "Are you sure? Your computer will be vulnerable to the evil eye."
 msgstr "Emin misiniz? Bilgisayarınız nazara karşı savunmasız kalacak."
+
+#: src/i18n/mod.rs:215
+msgid "rnazar on GitHub"
+msgstr "GitHub'da rnazar"

@@ -8,16 +8,28 @@ pub const LICENSE_TEXT: &str = "MIT License\n\nCopyright (c) 2026 Uğur Çetin\n
 pub const WEBSITE_URL: &str = "https://github.com/jnmbk/rnazar";
 
 #[cfg(target_os = "linux")]
+pub fn sync_gtk_locale(lang: &Language) {
+    let lang_code = lang.resolve().code().to_string();
+    unsafe {
+        std::env::set_var("LANGUAGE", &lang_code);
+        libc::setlocale(libc::LC_MESSAGES, b"\0".as_ptr() as *const libc::c_char);
+    }
+}
+
+#[cfg(target_os = "linux")]
 pub fn show_about_window(lang: Language) {
     use gdk_pixbuf::Pixbuf;
     use gtk::prelude::*;
     use gtk::{AboutDialog, License};
+
+    sync_gtk_locale(&lang);
 
     // Initialize GTK if not already initialized
     let _ = gtk::init();
 
     let dialog = AboutDialog::new();
     dialog.set_program_name("rnazar");
+    dialog.set_title(lang.about_title());
     dialog.set_version(Some(APP_VERSION));
     let comments = format!("{}\n\n{}", lang.about_body(), lang.inspiration_info());
     dialog.set_comments(Some(&comments));
@@ -28,7 +40,7 @@ pub fn show_about_window(lang: Language) {
     dialog.set_license_type(License::MitX11);
     dialog.set_license(Some(LICENSE_TEXT));
     dialog.set_website(Some(WEBSITE_URL));
-    dialog.set_website_label(Some("rnazar on GitHub"));
+    dialog.set_website_label(Some(lang.website_label()));
 
     dialog.connect_activate_link(|_dialog, uri| {
         let _ = gtk::show_uri_on_window(gtk::Window::NONE, uri, 0);

@@ -19,6 +19,8 @@ pub fn run_tray_application() -> Result<(), Box<dyn Error>> {
         .read()
         .map(|c| (c.language.clone(), c.protection))
         .unwrap_or((Language::Auto, true));
+    #[cfg(target_os = "linux")]
+    crate::about::sync_gtk_locale(&initial_lang);
     let menu_controller = TrayMenuController::new(initial_lang.clone(), initial_protection)?;
 
     // Build event loop with custom user events

@@ -87,3 +87,7 @@ msgstr "An evil eye struck and it was taken care of."
 #: src/i18n/mod.rs:207
 msgid "Are you sure? Your computer will be vulnerable to the evil eye."
 msgstr "Are you sure? Your computer will be vulnerable to the evil eye."
+
+#: src/i18n/mod.rs:215
+msgid "rnazar on GitHub"
+msgstr "rnazar on GitHub"

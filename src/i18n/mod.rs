@@ -228,6 +228,10 @@ impl Language {
         self.gettext("Inspiration")
     }
 
+    pub fn website_label(&self) -> &str {
+        self.gettext("rnazar on GitHub")
+    }
+
     pub fn crash_title(&self) -> &str {
         self.gettext("Evil eye!")
     }

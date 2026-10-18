@@ -86,3 +86,7 @@ msgstr ""
 msgid "Are you sure? Your computer will be vulnerable to the evil eye."
 msgstr ""
 
+#: src/i18n/mod.rs:215
+msgid "rnazar on GitHub"
+msgstr ""
+
