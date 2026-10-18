@@ -2100,7 +2100,6 @@ dependencies = [
  "gtk",
  "image",
  "interprocess",
- "libc",
  "log",
  "muda",
  "notify-rust",
