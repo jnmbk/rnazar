@@ -8,12 +8,35 @@ pub const LICENSE_TEXT: &str = "MIT License\n\nCopyright (c) 2026 Uğur Çetin\n
 pub const WEBSITE_URL: &str = "https://github.com/jnmbk/rnazar";
 
 #[cfg(target_os = "linux")]
-pub fn sync_gtk_locale(lang: &Language) {
-    let lang_code = lang.resolve().code().to_string();
-    unsafe {
-        std::env::set_var("LANGUAGE", &lang_code);
-        libc::setlocale(libc::LC_MESSAGES, b"\0".as_ptr() as *const libc::c_char);
+pub fn localize_about_dialog(dialog: &gtk::AboutDialog, lang: &Language) {
+    use gtk::prelude::*;
+
+    fn walk(widget: &gtk::Widget, lang: &Language, toggle_idx: &mut usize) {
+        if widget.downcast_ref::<gtk::LinkButton>().is_some() {
+            return;
+        }
+        if let Ok(toggle) = widget.clone().downcast::<gtk::ToggleButton>() {
+            match *toggle_idx {
+                0 => toggle.set_label(lang.dialog_credits()),
+                1 => toggle.set_label(lang.dialog_license()),
+                _ => {}
+            }
+            *toggle_idx += 1;
+            return;
+        }
+        if let Ok(btn) = widget.clone().downcast::<gtk::Button>() {
+            btn.set_label(lang.dialog_close());
+            return;
+        }
+        if let Ok(container) = widget.clone().downcast::<gtk::Container>() {
+            for child in container.children() {
+                walk(&child, lang, toggle_idx);
+            }
+        }
     }
+
+    let mut toggle_idx = 0;
+    walk(dialog.upcast_ref(), lang, &mut toggle_idx);
 }
 
 #[cfg(target_os = "linux")]
@@ -21,8 +44,6 @@ pub fn show_about_window(lang: Language) {
     use gdk_pixbuf::Pixbuf;
     use gtk::prelude::*;
     use gtk::{AboutDialog, License};
-
-    sync_gtk_locale(&lang);
 
     // Initialize GTK if not already initialized
     let _ = gtk::init();
@@ -41,6 +62,7 @@ pub fn show_about_window(lang: Language) {
     dialog.set_license(Some(LICENSE_TEXT));
     dialog.set_website(Some(WEBSITE_URL));
     dialog.set_website_label(Some(lang.website_label()));
+    localize_about_dialog(&dialog, &lang);
 
     dialog.connect_activate_link(|_dialog, uri| {
         let _ = gtk::show_uri_on_window(gtk::Window::NONE, uri, 0);

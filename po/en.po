@@ -91,3 +91,24 @@ msgstr "Are you sure? Your computer will be vulnerable to the evil eye."
 #: src/i18n/mod.rs:215
 msgid "rnazar on GitHub"
 msgstr "rnazar on GitHub"
+
+#: src/i18n/mod.rs:265
+msgid "Credits"
+msgstr "Credits"
+
+#: src/i18n/mod.rs:269
+msgid "License"
+msgstr "License"
+
+#: src/i18n/mod.rs:273
+msgid "Close"
+msgstr "Close"
+
+#: src/i18n/mod.rs:277
+msgid "Yes"
+msgstr "Yes"
+
+#: src/i18n/mod.rs:281
+msgid "No"
+msgstr "No"
+

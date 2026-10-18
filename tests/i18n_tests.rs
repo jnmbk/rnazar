@@ -71,23 +71,25 @@ fn test_about_window_translations() {
     );
 }
 
-#[cfg(target_os = "linux")]
 #[test]
-fn test_sync_gtk_locale() {
-    use rnazar::about::sync_gtk_locale;
-
-    sync_gtk_locale(&Language::Turkish);
-    assert_eq!(std::env::var("LANGUAGE").unwrap(), "tr");
-
-    sync_gtk_locale(&Language::English);
-    assert_eq!(std::env::var("LANGUAGE").unwrap(), "en");
+fn test_dialog_button_translations() {
+    assert_eq!(Language::English.dialog_credits(), "Credits");
+    assert_eq!(Language::Turkish.dialog_credits(), "Hazırlayanlar");
+    assert_eq!(Language::English.dialog_license(), "License");
+    assert_eq!(Language::Turkish.dialog_license(), "Lisans");
+    assert_eq!(Language::English.dialog_close(), "Close");
+    assert_eq!(Language::Turkish.dialog_close(), "Kapat");
+    assert_eq!(Language::English.dialog_yes(), "Yes");
+    assert_eq!(Language::Turkish.dialog_yes(), "Evet");
+    assert_eq!(Language::English.dialog_no(), "No");
+    assert_eq!(Language::Turkish.dialog_no(), "Hayır");
 }
 
 #[cfg(target_os = "linux")]
 #[test]
 fn test_about_dialog_gtk_widgets() {
     use gtk::prelude::*;
-    use rnazar::about::sync_gtk_locale;
+    use rnazar::about::localize_about_dialog;
 
     if gtk::init().is_err() {
         return;
@@ -97,11 +99,11 @@ fn test_about_dialog_gtk_widgets() {
         (Language::Turkish, "rnazar Hakkında", "Hazırlayanlar"),
         (Language::English, "About rnazar", "Credits"),
     ] {
-        sync_gtk_locale(&lang);
         let dialog = gtk::AboutDialog::new();
         dialog.set_program_name("rnazar");
         dialog.set_title(lang.about_title());
         dialog.set_website_label(Some(lang.website_label()));
+        localize_about_dialog(&dialog, &lang);
 
         assert_eq!(dialog.title().as_deref(), Some(expected_title));
 

@@ -90,3 +90,23 @@ msgstr ""
 msgid "rnazar on GitHub"
 msgstr ""
 
+#: src/i18n/mod.rs:265
+msgid "Credits"
+msgstr ""
+
+#: src/i18n/mod.rs:269
+msgid "License"
+msgstr ""
+
+#: src/i18n/mod.rs:273
+msgid "Close"
+msgstr ""
+
+#: src/i18n/mod.rs:277
+msgid "Yes"
+msgstr ""
+
+#: src/i18n/mod.rs:281
+msgid "No"
+msgstr ""
+

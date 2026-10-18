@@ -83,37 +83,21 @@ pub fn available_languages() -> Vec<AvailableLanguage> {
 }
 
 static EMPTY_CATALOG: OnceLock<Catalog> = OnceLock::new();
-static CACHE: OnceLock<std::sync::RwLock<HashMap<String, &'static Catalog>>> = OnceLock::new();
+static CATALOGS: OnceLock<HashMap<&'static str, Catalog>> = OnceLock::new();
 
 fn get_catalog(lang: ResolvedLanguage) -> &'static Catalog {
     let empty = EMPTY_CATALOG.get_or_init(Catalog::empty);
-    let lang_code = lang.code();
-
-    let cache = CACHE.get_or_init(|| std::sync::RwLock::new(HashMap::new()));
-
-    if let Ok(r) = cache.read() {
-        if let Some(&cat) = r.get(lang_code) {
-            return cat;
-        }
-    }
-
-    if let Ok(mut w) = cache.write() {
-        if let Some(&cat) = w.get(lang_code) {
-            return cat;
-        }
-        if let Some(&(_, mo_bytes)) = COMPILED_LOCALES
+    let catalogs = CATALOGS.get_or_init(|| {
+        COMPILED_LOCALES
             .iter()
-            .find(|&&(code, _)| code == lang_code)
-        {
-            let cat: &'static Catalog = Box::leak(Box::new(
-                Catalog::parse(mo_bytes).unwrap_or_else(|_| Catalog::empty()),
-            ));
-            w.insert(lang_code.to_string(), cat);
-            return cat;
-        }
-    }
+            .map(|&(code, mo_bytes)| {
+                let cat = Catalog::parse(mo_bytes).unwrap_or_else(|_| Catalog::empty());
+                (code, cat)
+            })
+            .collect()
+    });
 
-    empty
+    catalogs.get(lang.code()).unwrap_or(empty)
 }
 
 impl Language {
@@ -260,5 +244,25 @@ impl Language {
 
     pub fn exit_confirm_message(&self) -> &str {
         self.gettext("Are you sure? Your computer will be vulnerable to the evil eye.")
+    }
+
+    pub fn dialog_credits(&self) -> &str {
+        self.gettext("Credits")
+    }
+
+    pub fn dialog_license(&self) -> &str {
+        self.gettext("License")
+    }
+
+    pub fn dialog_close(&self) -> &str {
+        self.gettext("Close")
+    }
+
+    pub fn dialog_yes(&self) -> &str {
+        self.gettext("Yes")
+    }
+
+    pub fn dialog_no(&self) -> &str {
+        self.gettext("No")
     }
 }

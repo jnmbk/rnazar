@@ -91,3 +91,24 @@ msgstr "Emin misiniz? Bilgisayarınız nazara karşı savunmasız kalacak."
 #: src/i18n/mod.rs:215
 msgid "rnazar on GitHub"
 msgstr "GitHub'da rnazar"
+
+#: src/i18n/mod.rs:265
+msgid "Credits"
+msgstr "Hazırlayanlar"
+
+#: src/i18n/mod.rs:269
+msgid "License"
+msgstr "Lisans"
+
+#: src/i18n/mod.rs:273
+msgid "Close"
+msgstr "Kapat"
+
+#: src/i18n/mod.rs:277
+msgid "Yes"
+msgstr "Evet"
+
+#: src/i18n/mod.rs:281
+msgid "No"
+msgstr "Hayır"
+

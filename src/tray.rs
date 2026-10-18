@@ -78,9 +78,6 @@ impl TrayMenuController {
     }
 
     pub fn update_language(&self, lang: &Language) {
-        #[cfg(target_os = "linux")]
-        crate::about::sync_gtk_locale(lang);
-
         self.item_protection.set_text(lang.menu_protection());
         self.lang_submenu.set_text(lang.menu_language());
         self.item_lang_auto.set_text(lang.menu_lang_auto());
