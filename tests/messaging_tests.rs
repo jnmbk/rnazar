@@ -87,28 +87,40 @@ fn test_tray_icons_colored_and_grayscale() {
 
 #[test]
 fn test_ipc_roundtrip() {
-    use rnazar::messaging::ipc::{start_ipc_listener, trigger_ipc_crash};
+    use rnazar::messaging::ipc::{start_ipc_listener_with_path, trigger_ipc_crash_with_path};
     use std::sync::mpsc::channel;
     use std::sync::Arc;
     use std::time::Duration;
 
     let test_socket = std::env::temp_dir().join(format!("rnazar-test-{}.sock", std::process::id()));
-    std::env::set_var("RNAZAR_SOCKET_PATH", &test_socket);
 
     let (tx, rx) = channel();
-    start_ipc_listener(Arc::new(move |app| {
-        let _ = tx.send(app);
-    }));
+    start_ipc_listener_with_path(
+        &test_socket,
+        Arc::new(move |app| {
+            let _ = tx.send(app);
+        }),
+    );
 
     std::thread::sleep(Duration::from_millis(100));
 
-    let res = trigger_ipc_crash(Some("ipc-unit-test-app"));
+    let res = trigger_ipc_crash_with_path(&test_socket, Some("ipc-unit-test-app"));
     assert!(res.is_ok(), "trigger_ipc_crash failed: {:?}", res.err());
 
     let received = rx.recv_timeout(Duration::from_secs(3));
     assert_eq!(received.unwrap(), Some("ipc-unit-test-app".to_string()));
 
-    std::env::remove_var("RNAZAR_SOCKET_PATH");
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mode = std::fs::metadata(&test_socket)
+            .expect("socket metadata")
+            .permissions()
+            .mode()
+            & 0o777;
+        assert_eq!(mode, 0o600, "Unix IPC socket must have 0600 permissions");
+    }
+
     let _ = std::fs::remove_file(test_socket);
 }
 
