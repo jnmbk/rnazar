@@ -112,3 +112,7 @@ msgstr "Yes"
 msgid "No"
 msgstr "No"
 
+#: src/i18n/mod.rs:285
+msgid "About"
+msgstr "About"
+

@@ -73,6 +73,8 @@ fn test_about_window_translations() {
 
 #[test]
 fn test_dialog_button_translations() {
+    assert_eq!(Language::English.dialog_about(), "About");
+    assert_eq!(Language::Turkish.dialog_about(), "Hakkında");
     assert_eq!(Language::English.dialog_credits(), "Credits");
     assert_eq!(Language::Turkish.dialog_credits(), "Hazırlayanlar");
     assert_eq!(Language::English.dialog_license(), "License");
@@ -95,18 +97,55 @@ fn test_about_dialog_gtk_widgets() {
         return;
     }
 
-    for (lang, expected_title, expected_btn) in [
-        (Language::Turkish, "rnazar Hakkında", "Hazırlayanlar"),
-        (Language::English, "About rnazar", "Credits"),
+    for (lang, expected_title, expected_tabs) in [
+        (
+            Language::Turkish,
+            "rnazar Hakkında",
+            ["Hakkında", "Hazırlayanlar", "Lisans"],
+        ),
+        (
+            Language::English,
+            "About rnazar",
+            ["About", "Credits", "License"],
+        ),
     ] {
         let dialog = gtk::AboutDialog::new();
         dialog.set_program_name("rnazar");
         dialog.set_title(lang.about_title());
         dialog.set_website_label(Some(lang.website_label()));
+        dialog.set_authors(&["Test Author"]);
+        dialog.set_license(Some("Test License"));
         localize_about_dialog(&dialog, &lang);
 
         assert_eq!(dialog.title().as_deref(), Some(expected_title));
 
+        // Verify stack child titles
+        fn verify_stack_titles(widget: &gtk::Widget, expected: &[&str]) {
+            if let Ok(stack) = widget.clone().downcast::<gtk::Stack>() {
+                for child in stack.children() {
+                    match stack.child_name(&child).as_deref() {
+                        Some("main") => {
+                            assert_eq!(stack.child_title(&child).as_deref(), Some(expected[0]))
+                        }
+                        Some("credits") => {
+                            assert_eq!(stack.child_title(&child).as_deref(), Some(expected[1]))
+                        }
+                        Some("license") => {
+                            assert_eq!(stack.child_title(&child).as_deref(), Some(expected[2]))
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            if let Ok(container) = widget.clone().downcast::<gtk::Container>() {
+                for child in container.children() {
+                    verify_stack_titles(&child, expected);
+                }
+            }
+        }
+        verify_stack_titles(dialog.upcast_ref(), &expected_tabs);
+
+        // Verify buttons in stack switcher or action area
         let mut labels = Vec::new();
         fn collect_labels(widget: &gtk::Widget, labels: &mut Vec<String>) {
             if let Ok(btn) = widget.clone().downcast::<gtk::Button>() {
@@ -121,14 +160,16 @@ fn test_about_dialog_gtk_widgets() {
             }
         }
         collect_labels(dialog.upcast_ref(), &mut labels);
-        assert!(
-            labels
-                .iter()
-                .any(|l| l.replace('_', "").contains(expected_btn)),
-            "Expected button '{}' in dialog labels: {:?}",
-            expected_btn,
-            labels
-        );
+        for expected_tab in expected_tabs {
+            assert!(
+                labels
+                    .iter()
+                    .any(|l| l.replace('_', "").contains(expected_tab)),
+                "Expected tab '{}' in dialog labels: {:?}",
+                expected_tab,
+                labels
+            );
+        }
     }
 }
 

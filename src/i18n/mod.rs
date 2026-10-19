@@ -265,4 +265,8 @@ impl Language {
     pub fn dialog_no(&self) -> &str {
         self.gettext("No")
     }
+
+    pub fn dialog_about(&self) -> &str {
+        self.gettext("About")
+    }
 }

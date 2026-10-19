@@ -112,3 +112,7 @@ msgstr "Evet"
 msgid "No"
 msgstr "Hayır"
 
+#: src/i18n/mod.rs:285
+msgid "About"
+msgstr "Hakkında"
+

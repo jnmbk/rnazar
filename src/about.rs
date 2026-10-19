@@ -11,32 +11,62 @@ pub const WEBSITE_URL: &str = "https://github.com/jnmbk/rnazar";
 pub fn localize_about_dialog(dialog: &gtk::AboutDialog, lang: &Language) {
     use gtk::prelude::*;
 
-    fn walk(widget: &gtk::Widget, lang: &Language, toggle_idx: &mut usize) {
+    fn walk(widget: &gtk::Widget, lang: &Language, action_toggle_idx: &mut usize) {
         if widget.downcast_ref::<gtk::LinkButton>().is_some() {
             return;
         }
+
+        if let Ok(stack) = widget.clone().downcast::<gtk::Stack>() {
+            for child in stack.children() {
+                match stack.child_name(&child).as_deref() {
+                    Some("main") => stack.set_child_title(&child, Some(lang.dialog_about())),
+                    Some("credits") => stack.set_child_title(&child, Some(lang.dialog_credits())),
+                    Some("license") => stack.set_child_title(&child, Some(lang.dialog_license())),
+                    _ => {}
+                }
+            }
+        }
+
+        if let Ok(switcher) = widget.clone().downcast::<gtk::StackSwitcher>() {
+            let titles = [
+                lang.dialog_about(),
+                lang.dialog_credits(),
+                lang.dialog_license(),
+            ];
+            for (idx, child) in switcher.children().iter().enumerate() {
+                if let Some(&title) = titles.get(idx) {
+                    if let Ok(btn) = child.clone().downcast::<gtk::Button>() {
+                        btn.set_label(title);
+                    }
+                }
+            }
+            return;
+        }
+
         if let Ok(toggle) = widget.clone().downcast::<gtk::ToggleButton>() {
-            match *toggle_idx {
+            match *action_toggle_idx {
                 0 => toggle.set_label(lang.dialog_credits()),
                 1 => toggle.set_label(lang.dialog_license()),
                 _ => {}
             }
-            *toggle_idx += 1;
+            *action_toggle_idx += 1;
             return;
         }
+
         if let Ok(btn) = widget.clone().downcast::<gtk::Button>() {
             btn.set_label(lang.dialog_close());
             return;
         }
+
         if let Ok(container) = widget.clone().downcast::<gtk::Container>() {
             for child in container.children() {
-                walk(&child, lang, toggle_idx);
+                walk(&child, lang, action_toggle_idx);
             }
         }
     }
 
-    let mut toggle_idx = 0;
-    walk(dialog.upcast_ref(), lang, &mut toggle_idx);
+    let mut action_toggle_idx = 0;
+    walk(dialog.upcast_ref(), lang, &mut action_toggle_idx);
 }
 
 #[cfg(target_os = "linux")]
