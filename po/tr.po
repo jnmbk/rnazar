@@ -116,3 +116,7 @@ msgstr "Hayır"
 msgid "About"
 msgstr "Hakkında"
 
+#: src/i18n/mod.rs:289
+msgid "Created by"
+msgstr "Oluşturan"
+

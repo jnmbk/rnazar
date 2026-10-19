@@ -17,6 +17,14 @@ pub fn localize_about_dialog(dialog: &gtk::AboutDialog, lang: &Language) {
         }
 
         if let Ok(stack) = widget.clone().downcast::<gtk::Stack>() {
+            let orig_child = stack.visible_child_name();
+            stack.set_visible_child_name("credits");
+            if let Some(ref name) = orig_child {
+                stack.set_visible_child_name(name);
+            } else {
+                stack.set_visible_child_name("main");
+            }
+
             for child in stack.children() {
                 match stack.child_name(&child).as_deref() {
                     Some("main") => stack.set_child_title(&child, Some(lang.dialog_about())),
@@ -24,6 +32,26 @@ pub fn localize_about_dialog(dialog: &gtk::AboutDialog, lang: &Language) {
                     Some("license") => stack.set_child_title(&child, Some(lang.dialog_license())),
                     _ => {}
                 }
+            }
+        }
+
+        if let Ok(grid) = widget.clone().downcast::<gtk::Grid>() {
+            if let Some(child) = grid.child_at(0, 0) {
+                if let Ok(label) = child.downcast::<gtk::Label>() {
+                    label.set_markup(&format!(
+                        "<span size=\"small\">{}</span>",
+                        lang.dialog_created_by()
+                    ));
+                }
+            }
+        }
+
+        if let Ok(label) = widget.clone().downcast::<gtk::Label>() {
+            if label.text().as_str() == "Created by" {
+                label.set_markup(&format!(
+                    "<span size=\"small\">{}</span>",
+                    lang.dialog_created_by()
+                ));
             }
         }
 

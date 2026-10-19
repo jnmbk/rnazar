@@ -114,3 +114,7 @@ msgstr ""
 msgid "About"
 msgstr ""
 
+#: src/i18n/mod.rs:289
+msgid "Created by"
+msgstr ""
+

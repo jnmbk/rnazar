@@ -75,6 +75,8 @@ fn test_about_window_translations() {
 fn test_dialog_button_translations() {
     assert_eq!(Language::English.dialog_about(), "About");
     assert_eq!(Language::Turkish.dialog_about(), "Hakkında");
+    assert_eq!(Language::English.dialog_created_by(), "Created by");
+    assert_eq!(Language::Turkish.dialog_created_by(), "Oluşturan");
     assert_eq!(Language::English.dialog_credits(), "Credits");
     assert_eq!(Language::Turkish.dialog_credits(), "Hazırlayanlar");
     assert_eq!(Language::English.dialog_license(), "License");
@@ -97,16 +99,18 @@ fn test_about_dialog_gtk_widgets() {
         return;
     }
 
-    for (lang, expected_title, expected_tabs) in [
+    for (lang, expected_title, expected_tabs, expected_created_by) in [
         (
             Language::Turkish,
             "rnazar Hakkında",
             ["Hakkında", "Hazırlayanlar", "Lisans"],
+            "Oluşturan",
         ),
         (
             Language::English,
             "About rnazar",
             ["About", "Credits", "License"],
+            "Created by",
         ),
     ] {
         let dialog = gtk::AboutDialog::new();
@@ -153,6 +157,9 @@ fn test_about_dialog_gtk_widgets() {
                     labels.push(lbl.to_string());
                 }
             }
+            if let Ok(lbl) = widget.clone().downcast::<gtk::Label>() {
+                labels.push(lbl.text().to_string());
+            }
             if let Ok(container) = widget.clone().downcast::<gtk::Container>() {
                 for child in container.children() {
                     collect_labels(&child, labels);
@@ -170,6 +177,12 @@ fn test_about_dialog_gtk_widgets() {
                 labels
             );
         }
+        assert!(
+            labels.iter().any(|l| l == expected_created_by),
+            "Expected '{}' in dialog labels: {:?}",
+            expected_created_by,
+            labels
+        );
     }
 }
 

@@ -269,4 +269,8 @@ impl Language {
     pub fn dialog_about(&self) -> &str {
         self.gettext("About")
     }
+
+    pub fn dialog_created_by(&self) -> &str {
+        self.gettext("Created by")
+    }
 }
