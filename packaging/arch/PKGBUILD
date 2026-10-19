@@ -1,6 +1,6 @@
 # Maintainer: jnmbk <noreply@github.com>
 pkgname=rnazar
-pkgver=0.8.1
+pkgver=0.8.2
 pkgrel=1
 pkgdesc="System tray evil eye ward and crash notifier"
 arch=('x86_64')

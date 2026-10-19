@@ -1,7 +1,7 @@
 ; Inno Setup Script for rnazar
 #define MyAppName "rnazar"
 #ifndef MyAppVersion
-#define MyAppVersion "0.8.1"
+#define MyAppVersion "0.8.2"
 #endif
 #define MyAppPublisher "rnazar Team"
 #define MyAppURL "https://github.com/jnmbk/rnazar"
