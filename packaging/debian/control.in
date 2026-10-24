@@ -4,7 +4,7 @@ Section: utils
 Priority: optional
 Architecture: @ARCH@
 Installed-Size: @INSTALLED_SIZE@
-Maintainer: jnmbk <noreply@github.com>
+Maintainer: jnmbk <ugur.jnmbk@gmail.com>
 Depends: libgtk-3-0 (>= 3.20), libc6 (>= 2.31)
 Homepage: https://github.com/jnmbk/rnazar
 Description: System tray evil eye ward and crash notifier

@@ -58,6 +58,6 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
 %{_datadir}/licenses/%{name}/LICENSE
 
 %changelog
-* Mon Oct 12 2026 jnmbk <noreply@github.com> - %{version}-1
+* Mon Oct 12 2026 jnmbk <ugur.jnmbk@gmail.com> - %{version}-1
 - Release version %{version}
 
