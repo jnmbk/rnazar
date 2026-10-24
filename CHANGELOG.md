@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.4](https://github.com/jnmbk/rnazar/compare/v0.8.3...v0.8.4) (2026-10-24)
+
+
+### Bug Fixes
+
+* **packaging:** add dependencies to arch package and remove unused license ([4c45519](https://github.com/jnmbk/rnazar/commit/4c4551966a7fb2f3bf5c774e01f7140f5a38b278))
+* **packaging:** update maintainer email ([7f6c5ff](https://github.com/jnmbk/rnazar/commit/7f6c5ffe18f1c519e07384d26a86886572e8a9a1))
+
 ## [0.8.3](https://github.com/jnmbk/rnazar/compare/v0.8.2...v0.8.3) (2026-10-19)
 
 
