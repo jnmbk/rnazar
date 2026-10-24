@@ -51,7 +51,6 @@ packager = jnmbk <ugur.jnmbk@gmail.com>
 size = ${SIZE}
 arch = x86_64
 license = MIT
-license = Apache-2.0
 depend = gtk3
 EOF
 

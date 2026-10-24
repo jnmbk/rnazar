@@ -3,10 +3,18 @@ pkgname=rnazar
 pkgver=0.8.2
 pkgrel=1
 pkgdesc="System tray evil eye ward and crash notifier"
-arch=('x86_64')
+arch=('x86_64', 'aarch64')
 url="https://github.com/jnmbk/rnazar"
-license=('MIT' 'Apache-2.0')
-depends=('gtk3')
+license=('MIT')
+depends=(
+  'cairo'
+  'gdk-pixbuf2'
+  'glib2'
+  'glibc'
+  'gtk3'
+  'hicolor-icon-theme'
+  'libgcc'
+)
 makedepends=('cargo')
 source=("rnazar::git+https://github.com/jnmbk/rnazar.git#tag=v${pkgver}")
 sha256sums=('SKIP')
