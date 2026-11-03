@@ -232,11 +232,11 @@ fn test_language_resolution() {
 
 #[test]
 fn test_about_metadata() {
-    assert!(!rnazar::about::APP_VERSION.is_empty());
-    assert!(!rnazar::about::CREATOR_INFO.is_empty());
-    assert!(!rnazar::about::LICENSE_NAME.is_empty());
-    assert!(!rnazar::about::LICENSE_TEXT.is_empty());
-    assert!(!rnazar::about::WEBSITE_URL.is_empty());
+    assert_ne!(rnazar::about::APP_VERSION, "");
+    assert_ne!(rnazar::about::CREATOR_INFO, "");
+    assert_ne!(rnazar::about::LICENSE_NAME, "");
+    assert_ne!(rnazar::about::LICENSE_TEXT, "");
+    assert_ne!(rnazar::about::WEBSITE_URL, "");
     assert!(rnazar::about::CREATOR_INFO.contains("Uğur Çetin"));
     assert!(rnazar::about::LICENSE_TEXT.contains("MIT License"));
     assert!(rnazar::about::INSPIRATION_INFO.contains("knazar from Pardus 1.0"));

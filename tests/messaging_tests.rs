@@ -391,7 +391,7 @@ fn test_crash_dir_scanner() {
     .unwrap();
 
     let mut scanner = CrashDirScanner::new(vec![temp_dir.clone()]);
-    assert!(scanner.poll_new_crashes().is_empty());
+    assert_eq!(scanner.poll_new_crashes(), Vec::<String>::new());
 
     // Hidden dotfile created while OSAnalytics is writing should be ignored until renamed
     let dot_ips = temp_dir.join(".Safari-2026-10-12-210000.ips");
@@ -401,12 +401,12 @@ fn test_crash_dir_scanner() {
         "{\"app_name\":\"Safari\",\"bug_type\":\"309\"}\n{}",
     )
     .unwrap();
-    assert!(scanner.poll_new_crashes().is_empty());
+    assert_eq!(scanner.poll_new_crashes(), Vec::<String>::new());
 
     fs::rename(&dot_ips, &final_ips).unwrap();
     assert_eq!(scanner.poll_new_crashes(), vec!["Safari".to_string()]);
     // Subsequent poll should not re-emit already seen file
-    assert!(scanner.poll_new_crashes().is_empty());
+    assert_eq!(scanner.poll_new_crashes(), Vec::<String>::new());
 
     // Windows WER folder with Report.wer inside
     let wer_dir = temp_dir.join("AppCrash_mspaint.exe_123456");
