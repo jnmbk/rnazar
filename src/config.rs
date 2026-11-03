@@ -34,9 +34,23 @@ impl AppConfig {
 
     pub fn load_from_path(path: &std::path::Path) -> Self {
         if path.exists() {
-            if let Ok(content) = fs::read_to_string(path) {
-                if let Ok(config) = serde_json::from_str::<AppConfig>(&content) {
-                    return config;
+            match fs::read_to_string(path) {
+                Ok(content) => match serde_json::from_str::<AppConfig>(&content) {
+                    Ok(config) => return config,
+                    Err(e) => {
+                        log::warn!(
+                            "Failed to parse config file at {:?}: {}. Using default config.",
+                            path,
+                            e
+                        );
+                    }
+                },
+                Err(e) => {
+                    log::warn!(
+                        "Failed to read config file at {:?}: {}. Using default config.",
+                        path,
+                        e
+                    );
                 }
             }
         }
